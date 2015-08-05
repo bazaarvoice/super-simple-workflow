@@ -40,18 +40,22 @@ public class ExampleWorkflowService {
 
         decisionExecutor.scheduleWithFixedDelay(() -> {
             final DecisionTask task = decisionWorker.pollForWork();
-            System.out.println("Decision: got task: "+ Objects.toString(task));
             if (task != null) {
+                System.out.println("Decision: got task");
                 decisionWorker.doWork(task);
+            } else {
+                System.out.println("Decision: Got no task...");
             }
             System.out.println("Decision: done");
         }, 10, 10, TimeUnit.SECONDS);
 
         actionExecutor.scheduleWithFixedDelay(() -> {
             final ActivityTask task = actionWorker.pollForWork();
-            System.out.println("Action: got task: "+ Objects.toString(task));
             if (task != null) {
+                System.out.println("Action: got task");
                 actionWorker.doWork(task);
+            } else {
+                System.out.println("Action: Got no task...");
             }
             System.out.println("Action: done");
         }, 10, 10, TimeUnit.SECONDS);

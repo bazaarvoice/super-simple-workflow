@@ -10,18 +10,17 @@ import java.util.List;
 
 public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWorkflowInput, ExampleWorkflowSteps> {
 
+
     @Override public List<ExampleWorkflowSteps> workflow(final ExampleWorkflowInput exampleWorkflowInput) {
         return Arrays.asList(ExampleWorkflowSteps.EXTRACT_STEP, ExampleWorkflowSteps.TRANSFORM_STEP, ExampleWorkflowSteps.LOAD_STEP);
     }
 
     @Override public void onFail(final ExampleWorkflowInput exampleWorkflowInput, final StepsHistory<ExampleWorkflowInput, ExampleWorkflowSteps> history, final String message) {
-        System.out.println("Workflow Failed!!!");
-        System.out.println(message);
+        System.out.println("Workflow Failed!!! " + message);
     }
 
     @Override public void onFinish(final ExampleWorkflowInput exampleWorkflowInput, final StepsHistory<ExampleWorkflowInput, ExampleWorkflowSteps> history, final String message) {
-        System.out.println("Workflow Finished!!!");
-        System.out.println(message);
+        System.out.println("Workflow Finished!!! " + message);
     }
 
     @Override public StepResult act(final ExampleWorkflowSteps step, final ExampleWorkflowInput exampleWorkflowInput) {

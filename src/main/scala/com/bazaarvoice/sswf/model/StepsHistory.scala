@@ -109,7 +109,7 @@ object HistoryFactory {
               }
             val endTime: DateTime = new DateTime(h.getEventTimestamp.getTime)
             val stepStart: DateTime = new DateTime(startTimes(id))
-            Some(StepEvent[StepEnum](eventId, Left(enumFromName(id)), s"TIMED_OUT: $timeoutType", TIMED_OUT, eventStart, Some(endTime), new Duration(stepStart, endTime)))
+            Some(StepEvent[StepEnum](eventId, Left(enumFromName(id)), s"TIMED_OUT:$timeoutType", TIMED_OUT, eventStart, Some(endTime), new Duration(stepStart, endTime)))
           case ActivityTaskFailed         =>
             steps.put(h.getEventId, h)
             val attributes: ActivityTaskFailedEventAttributes = h.getActivityTaskFailedEventAttributes
@@ -117,9 +117,9 @@ object HistoryFactory {
             val id: String = steps(eventId).getActivityTaskScheduledEventAttributes.getActivityId
             val endTime: DateTime = new DateTime(h.getEventTimestamp.getTime)
             val stepStart: DateTime = new DateTime(startTimes(id))
-            Some(StepEvent[StepEnum](eventId, Left(enumFromName(id)), s"${attributes.getReason}: ${attributes.getDetails}", FAILED, startTime, Some(endTime), new Duration(stepStart, endTime)))
+            Some(StepEvent[StepEnum](eventId, Left(enumFromName(id)), s"${attributes.getReason}:${attributes.getDetails}", FAILED, startTime, Some(endTime), new Duration(stepStart, endTime)))
           case TimerStarted               =>
-            val attributes = h.getTimerFiredEventAttributes
+            val attributes = h.getTimerStartedEventAttributes
             val timerId = attributes.getTimerId
             startedTimers.put(timerId, h)
             None
@@ -129,7 +129,7 @@ object HistoryFactory {
             firedTimers.add(timerId)
             None
           case TimerCanceled              =>
-            val attributes = h.getTimerFiredEventAttributes
+            val attributes = h.getTimerCanceledEventAttributes
             val timerId = attributes.getTimerId
             cancelledTimers.add(timerId)
             None

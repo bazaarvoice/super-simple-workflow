@@ -45,34 +45,37 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
   private[this] val identity = ManagementFactory.getRuntimeMXBean.getName
 
   @Nullable
-  def pollForWork(): DecisionTask = {
+  def pollForWork(): DecisionTask = try {
     val decisionTask: DecisionTask = swf.pollForDecisionTask(new PollForDecisionTaskRequest().withDomain(domain).withTaskList(new TaskList().withName(taskList)).withIdentity(identity))
     if (decisionTask.getTaskToken != null) {
       decisionTask
     } else {
       null
     }
+  } catch {
+    case t: Throwable =>
+      System.err.println("Exception while polling for a decision. Continuing...")
+      t.printStackTrace(System.err)
+      null
   }
 
-  def doWork(decisionTask: DecisionTask): Unit = {
+  def doWork(decisionTask: DecisionTask): Unit = try {
     if (decisionTask == null) {return} // just being defensive, since we do return null from poll.
 
-    val completedRequest: RespondDecisionTaskCompletedRequest = innerMakeDecision(decisionTask)
+    val (newDecisionTask, events) = getFullHistory(decisionTask)
+    val completedRequest: RespondDecisionTaskCompletedRequest = innerMakeDecision(newDecisionTask, events)
+
     if (completedRequest != null) {
       swf.respondDecisionTaskCompleted(completedRequest)
     }
-  }
-
-  private[this] def innerMakeDecision(decisionTask: DecisionTask) = try {
-    val (newDecisionTask, events) = getFullHistory(decisionTask)
-    innerInnerMakeDecision(newDecisionTask, events)
   } catch {
     case t: Throwable =>
       //      LOG.error("Exception  while making a decision.", t)
-      throw t
+      System.err.println("Exception while making a decision. Continuing...")
+      t.printStackTrace(System.err)
   }
 
-  private[this] def innerInnerMakeDecision(decisionTask: DecisionTask, events: List[HistoryEvent]): RespondDecisionTaskCompletedRequest = {
+  private[this] def innerMakeDecision(decisionTask: DecisionTask, events: List[HistoryEvent]): RespondDecisionTaskCompletedRequest = {
     val history: StepsHistory[SSWFInput, StepEnum] = HistoryFactory.from(events, inputParser)
 
     val input = history.input
@@ -123,11 +126,14 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
     } else {
       for (pipe <- workflowDefinition.workflow(input)) {
         val lastOption: Option[StepEvent[StepEnum]] = history.events.filter(_.event == Left(pipe)).lastOption
-        val result: Option[StepResult] = lastOption.map(l => StepResult.fromString(l.result))
+        val result: Option[StepResult] = lastOption.map(l => {
+          StepResult.fromString(l.result)
+        })
         result match {
           case None                => return respond(schedule(Some(pipe)))
           case Some(Failed(m))     => return respond(fail(s"Failed stage $pipe", Failed(m).toString))
           case Some(InProgress(m)) => return respond(waitRetry(pipe))
+          case Some(TimedOut(m))   => return respond(waitRetry(pipe))
           case Some(Success(m))    => ()
         }
       }

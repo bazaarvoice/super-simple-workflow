@@ -18,7 +18,7 @@ class StepActionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) : C
   private[this] val identity = ManagementFactory.getRuntimeMXBean.getName
 
   @Nullable
-  def pollForWork(): ActivityTask = {
+  def pollForWork(): ActivityTask = try {
     val request = new PollForActivityTaskRequest()
        .withDomain(domain)
        .withTaskList(new TaskList().withName(taskList))
@@ -31,9 +31,14 @@ class StepActionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) : C
     } else {
       null
     }
+  } catch {
+    case t: Throwable =>
+      System.err.println("Exception while polling for an action. Continuing...")
+      t.printStackTrace(System.err)
+      null
   }
 
-  def doWork(activityTask: ActivityTask): Unit = {
+  def doWork(activityTask: ActivityTask): Unit = try {
     if (activityTask == null) {return} // just being defensive, since we do return null from poll.
 
 
@@ -44,5 +49,9 @@ class StepActionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) : C
 
     val response: RespondActivityTaskCompletedRequest = new RespondActivityTaskCompletedRequest().withResult(StepResult.toString(result)).withTaskToken(activityTask.getTaskToken)
     swf.respondActivityTaskCompleted(response)
+  } catch {
+    case t: Throwable =>
+      System.err.println("Exception while executing an action. Continuing...")
+      t.printStackTrace(System.err)
   }
 }

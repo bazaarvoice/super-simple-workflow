@@ -47,6 +47,20 @@ object Failed {
   def apply(msg: Any) = new Failed(msg.toString)
 }
 
+case class TimedOut(message: Option[String]) extends StepResult(message) {
+  def this() = this(None)
+  def this(msg: String) = this(Some(msg))
+
+  lazy val isSuccessful = false
+  override def isInProgress: Boolean = false
+}
+
+object TimedOut {
+  def apply() = new TimedOut()
+  def apply(msg: String) = new TimedOut(msg)
+  def apply(msg: Any) = new TimedOut(msg.toString)
+}
+
 object StepResult {
   def fromString(string: String): StepResult =
     string.split(":").toList match {
@@ -56,6 +70,8 @@ object StepResult {
       case "IN_PROGRESS" :: msg => InProgress(Some(msg.mkString(":")))
       case "FAILED" :: Nil => Failed(None)
       case "FAILED" :: msg => Failed(Some(msg.mkString(":")))
+      case "TIMED_OUT" :: Nil => TimedOut(None)
+      case "TIMED_OUT" :: msg => TimedOut(Some(msg.mkString(":")))
       case _ => throw new IllegalArgumentException(string)
     }
 
@@ -66,6 +82,8 @@ object StepResult {
     case InProgress(None) => "IN_PROGRESS"
     case Failed(Some(msg)) => "FAILED:" + msg
     case Failed(None) => "FAILED"
+    case TimedOut(Some(msg)) => "TIMED_OUT:"+msg
+    case TimedOut(None) => "TIMED_OUT"
   }
 }
 
