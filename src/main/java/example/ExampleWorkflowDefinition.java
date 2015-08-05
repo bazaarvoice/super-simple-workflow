@@ -1,15 +1,20 @@
 package example;
 
 import com.bazaarvoice.sswf.WorkflowDefinition;
+import com.bazaarvoice.sswf.model.InProgress;
 import com.bazaarvoice.sswf.model.StepResult;
 import com.bazaarvoice.sswf.model.StepsHistory;
 import com.bazaarvoice.sswf.model.Success;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWorkflowInput, ExampleWorkflowSteps> {
-
+    // I'm implementing a little state machine here to demonstrate the desired pattern of checking invariants first,
+    // returning InProgress until they are done, and returning Success if and only if all invariants are met.
+    // This results in a workflow whose steps are idempotent, and which is therefore restartable (and much less headachey).
+    private static String state = "not started";
 
     @Override public List<ExampleWorkflowSteps> workflow(final ExampleWorkflowInput exampleWorkflowInput) {
         return Arrays.asList(ExampleWorkflowSteps.EXTRACT_STEP, ExampleWorkflowSteps.TRANSFORM_STEP, ExampleWorkflowSteps.LOAD_STEP);
@@ -26,14 +31,23 @@ public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWork
     @Override public StepResult act(final ExampleWorkflowSteps step, final ExampleWorkflowInput exampleWorkflowInput) {
         switch (step) {
             case EXTRACT_STEP:
-                System.out.println("Running extract for "+exampleWorkflowInput.getName());
-                return new Success("Nothing to do!");
+                if (!Objects.equals(state, "extract finished")) {
+                    state = "extract finished";
+                    return new InProgress("started extract");
+                }
+                return new Success("Extract is done.");
             case TRANSFORM_STEP:
-                System.out.println("Running transform for "+exampleWorkflowInput.getName());
+                if (!Objects.equals(state, "transform finished")) {
+                    state = "transform finished";
+                    return new InProgress("transform started");
+                }
                 return new Success("Nothing to do!");
             case LOAD_STEP:
-                System.out.println("Running load for "+exampleWorkflowInput.getName());
-                return new Success("Nothing to do!");
+                if (!Objects.equals(state, "load finished")) {
+                    state = "load finished";
+                    return new InProgress("load started");
+                }
+                return new Success("load finished");
             default:
                 throw new IllegalStateException("Unexpected step enum" + step);
         }

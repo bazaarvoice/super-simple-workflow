@@ -11,7 +11,6 @@ import com.bazaarvoice.sswf.service.StepDecisionWorker;
 import com.bazaarvoice.sswf.service.WorkflowManagement;
 import scala.reflect.ClassTag$;
 
-import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -47,7 +46,7 @@ public class ExampleWorkflowService {
                 System.out.println("Decision: Got no task...");
             }
             System.out.println("Decision: done");
-        }, 10, 10, TimeUnit.SECONDS);
+        }, 5, 5, TimeUnit.SECONDS);
 
         actionExecutor.scheduleWithFixedDelay(() -> {
             final ActivityTask task = actionWorker.pollForWork();
@@ -58,7 +57,7 @@ public class ExampleWorkflowService {
                 System.out.println("Action: Got no task...");
             }
             System.out.println("Action: done");
-        }, 10, 10, TimeUnit.SECONDS);
+        }, 5, 5, TimeUnit.SECONDS);
     }
 
     public void stop() {
@@ -72,7 +71,9 @@ public class ExampleWorkflowService {
         service.start();
 
         // submit a workflow for fun
-        final WorkflowManagement.WorkflowExecution workflowExecution = service.workflowManagement.startWorkflow("workflow-" + new Random().nextInt(Integer.MAX_VALUE), new ExampleWorkflowInput("example-input-parameter-value"));
+        final int rando = new Random().nextInt(Integer.MAX_VALUE);
+        final ExampleWorkflowInput input = new ExampleWorkflowInput("example-input-parameter-value-" + rando);
+        final WorkflowManagement.WorkflowExecution workflowExecution = service.workflowManagement.startWorkflow("workflow-" + rando, input);
 
         System.out.println(workflowExecution);
 
@@ -80,7 +81,15 @@ public class ExampleWorkflowService {
         do {
             Thread.sleep(10000);
             execution = service.workflowManagement.describeExecution(workflowExecution.wfId(), workflowExecution.runId());
-            System.out.println(execution);
+            System.out.println("");
+            System.out.println("WF history:");
+            System.out.println("  input: " + execution.input());
+            System.out.println("  firedTimers: " + execution.firedTimers());
+            System.out.println("  events:");
+            for (StepEvent<ExampleWorkflowSteps> event : execution.events()) {
+                System.out.println("    " + event);
+            }
+            System.out.println();
         } while (execution.events().isEmpty() || !eventIsWorkflowFinish(execution.events().get(execution.events().size() - 1)));
 
         System.out.println("the workflow is done!");

@@ -3,9 +3,9 @@ package example;
 import com.bazaarvoice.sswf.SSWFStep;
 
 public enum ExampleWorkflowSteps implements SSWFStep {
-    EXTRACT_STEP("0.0", 60, 120),
-    TRANSFORM_STEP("0.0", 60, 120),
-    LOAD_STEP("0.0", 60, 120)
+    EXTRACT_STEP("0.0", 10, 120),
+    TRANSFORM_STEP("0.0", 10, 120),
+    LOAD_STEP("0.0", 10, 120)
     ;
 
     private String version;
