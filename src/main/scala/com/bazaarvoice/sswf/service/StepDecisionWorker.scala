@@ -38,10 +38,10 @@ import scala.reflect.ClassTag
  * @tparam StepEnum The enum containing workflow step definitions
  */
 class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) : ClassTag](domain: String,
-                                                                                            taskList: String,
-                                                                                            swf: AmazonSimpleWorkflow,
-                                                                                            inputParser: InputParser[SSWFInput],
-                                                                                            workflowDefinition: WorkflowDefinition[SSWFInput, StepEnum]) {
+                                                                                           taskList: String,
+                                                                                           swf: AmazonSimpleWorkflow,
+                                                                                           inputParser: InputParser[SSWFInput],
+                                                                                           workflowDefinition: WorkflowDefinition[SSWFInput, StepEnum]) {
   private[this] val identity = ManagementFactory.getRuntimeMXBean.getName
 
   @Nullable

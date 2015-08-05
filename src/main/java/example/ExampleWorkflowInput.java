@@ -8,7 +8,7 @@ public class ExampleWorkflowInput {
      */
     public static final class Parser implements InputParser<ExampleWorkflowInput> {
         @Override public String serialize(final ExampleWorkflowInput exampleWorkflowInput) {
-            return "name:"+ exampleWorkflowInput.getName();
+            return "name:" + exampleWorkflowInput.getName();
         }
 
         @Override public ExampleWorkflowInput deserialize(final String inputString) {
@@ -23,4 +23,7 @@ public class ExampleWorkflowInput {
     public String getName() {
         return name;
     }
+
+    public String toString() {return "ExampleWorkflowInput{name: [" + name + "]}";}
+
 }

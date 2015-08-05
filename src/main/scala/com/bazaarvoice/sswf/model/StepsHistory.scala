@@ -1,6 +1,6 @@
 package com.bazaarvoice.sswf.model
 
-import java.lang
+import java.{util, lang}
 import java.util.Collections
 
 import com.amazonaws.services.simpleworkflow.model.EventType._
@@ -161,7 +161,9 @@ object HistoryFactory {
         firedStep
       }
 
-    StepsHistory[SSWFInput, StepEnum](inputParser.deserialize(input), Collections.unmodifiableList(filterStarts(events)), Collections.unmodifiableSet(firedSteps.toSet))
+    val starts: util.List[StepEvent[StepEnum]] = filterStarts(events)
+
+    StepsHistory[SSWFInput, StepEnum](inputParser.deserialize(input), Collections.unmodifiableList(starts), Collections.unmodifiableSet(new util.HashSet[StepEnum](firedSteps)))
   }
 
 }

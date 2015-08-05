@@ -38,6 +38,7 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
                                                                                            workflowVersion: String,
                                                                                            taskList: String,
                                                                                            swf: AmazonSimpleWorkflow,
+                                                                                           workflowExecutionTimeoutSeconds: Int = 60 * 60 * 24 * 30, // default: one month
                                                                                            workflowExecutionRetentionPeriodInDays: Int = 30,
                                                                                            stepScheduleToStartTimeoutSeconds: Int = 60,
                                                                                            inputParser: InputParser[SSWFInput]) {
@@ -141,8 +142,9 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
          .iterate(swf.getWorkflowExecutionHistory(request))(iterateFn)
          .takeWhile(_ != null)
          .flatten(_.getEvents)
+         .toList
 
-    HistoryFactory.from(historyEvents.toList, inputParser)
+    HistoryFactory.from(historyEvents, inputParser)
   }
 
 
@@ -179,6 +181,9 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
              .withName(workflow)
              .withVersion(workflowVersion)
              .withDescription(s"workflow[$workflow/$workflowVersion] registered by SSWF at [${new Date()}}]")
+             .withDefaultExecutionStartToCloseTimeout(workflowExecutionTimeoutSeconds.toString)
+             .withDefaultTaskStartToCloseTimeout(60.toString) // timeout for decision tasks
+             .withDefaultChildPolicy(ChildPolicy.TERMINATE)
           )
         } catch {
           case e: TypeAlreadyExistsException =>
