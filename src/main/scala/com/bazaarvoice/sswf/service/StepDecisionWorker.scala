@@ -7,7 +7,7 @@ import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflow
 import com.amazonaws.services.simpleworkflow.model._
 import com.bazaarvoice.sswf.model._
 import com.bazaarvoice.sswf.{InputParser, SSWFStep, StepEventState, WorkflowDefinition}
-import com.sun.istack.internal.Nullable
+import com.sun.istack.internal.{NotNull, Nullable}
 
 import scala.collection.JavaConversions._
 import scala.reflect.ClassTag
@@ -44,35 +44,36 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
                                                                                            workflowDefinition: WorkflowDefinition[SSWFInput, StepEnum]) {
   private[this] val identity = ManagementFactory.getRuntimeMXBean.getName
 
+  /**
+   * Find out if any workflows in our domain/taskList need decisions made.
+   * @throws Throwable A variety of exceptions are possible. Make sure your poller threads can't die without replacement.
+   * @return The decision task, if there is one. Null otherwise.
+   */
   @Nullable
-  def pollForWork(): DecisionTask = try {
+  def pollForDecisionsToMake(): DecisionTask = {
     val decisionTask: DecisionTask = swf.pollForDecisionTask(new PollForDecisionTaskRequest().withDomain(domain).withTaskList(new TaskList().withName(taskList)).withIdentity(identity))
     if (decisionTask.getTaskToken != null) {
       decisionTask
     } else {
       null
     }
-  } catch {
-    case t: Throwable =>
-      System.err.println("Exception while polling for a decision. Continuing...")
-      t.printStackTrace(System.err)
-      null
   }
 
-  def doWork(decisionTask: DecisionTask): Unit = try {
-    if (decisionTask == null) {return} // just being defensive, since we do return null from poll.
+  /**
+   * Given the context of a workflow execution, decide what needs to be done next.
+   * @param decisionTask The task from SWF. Must not be null!
+   * @throws Throwable A variety of exceptions are possible. Make sure your worker threads can't die without replacement.
+   * @return The decision that we sent to SWF
+   */
+  def makeDecision(@NotNull decisionTask: DecisionTask): RespondDecisionTaskCompletedRequest = {
+    require(decisionTask != null, "decisionTask must not be null")
 
     val (newDecisionTask, events) = getFullHistory(decisionTask)
     val completedRequest: RespondDecisionTaskCompletedRequest = innerMakeDecision(newDecisionTask, events)
 
-    if (completedRequest != null) {
-      swf.respondDecisionTaskCompleted(completedRequest)
-    }
-  } catch {
-    case t: Throwable =>
-      //      LOG.error("Exception  while making a decision.", t)
-      System.err.println("Exception while making a decision. Continuing...")
-      t.printStackTrace(System.err)
+    swf.respondDecisionTaskCompleted(completedRequest)
+
+    completedRequest
   }
 
   private[this] def innerMakeDecision(decisionTask: DecisionTask, events: List[HistoryEvent]): RespondDecisionTaskCompletedRequest = {
@@ -127,7 +128,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
       for (pipe <- workflowDefinition.workflow(input)) {
         val lastOption: Option[StepEvent[StepEnum]] = history.events.filter(_.event == Left(pipe)).lastOption
         val result: Option[StepResult] = lastOption.map(l => {
-          StepResult.fromString(l.result)
+          StepResult.deserialize(l.result)
         })
         result match {
           case None                => return respond(schedule(Some(pipe)))

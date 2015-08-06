@@ -87,20 +87,21 @@ object HistoryFactory {
             val attributes: ActivityTaskCompletedEventAttributes = h.getActivityTaskCompletedEventAttributes
             val eventId: Long = attributes.getScheduledEventId
             val id: String = steps(eventId).getActivityTaskScheduledEventAttributes.getActivityId
-            val result: String = attributes.getResult
+            val result: StepResult = StepResult.deserialize(attributes.getResult)
             val eventStart: DateTime = new DateTime(steps(attributes.getStartedEventId).getEventTimestamp)
             val endTime: DateTime = new DateTime(h.getEventTimestamp.getTime)
             val stepStart: DateTime = new DateTime(startTimes(id))
 
             val enum: StepEnum = enumFromName(id)
             completedStepCounts = completedStepCounts + (enum -> (completedStepCounts(enum) + 1))
-            Some(StepEvent[StepEnum](eventId, Left(enum), result, COMPLETE, eventStart, Some(endTime), new Duration(stepStart, endTime)))
+            Some(StepEvent[StepEnum](eventId, Left(enum), StepResult.serialize(result), COMPLETE, eventStart, Some(endTime), new Duration(stepStart, endTime)))
           case ActivityTaskTimedOut       =>
             steps.put(h.getEventId, h)
             val attributes: ActivityTaskTimedOutEventAttributes = h.getActivityTaskTimedOutEventAttributes
             val eventId: Long = attributes.getScheduledEventId
             val id: String = steps(eventId).getActivityTaskScheduledEventAttributes.getActivityId
             val timeoutType: String = attributes.getTimeoutType
+            val result: TimedOut = TimedOut(timeoutType)
             val eventStart =
               if (timeoutType == "SCHEDULE_TO_START") {
                 new DateTime(steps(eventId).getEventTimestamp)
@@ -109,7 +110,7 @@ object HistoryFactory {
               }
             val endTime: DateTime = new DateTime(h.getEventTimestamp.getTime)
             val stepStart: DateTime = new DateTime(startTimes(id))
-            Some(StepEvent[StepEnum](eventId, Left(enumFromName(id)), s"TIMED_OUT:$timeoutType", TIMED_OUT, eventStart, Some(endTime), new Duration(stepStart, endTime)))
+            Some(StepEvent[StepEnum](eventId, Left(enumFromName(id)), StepResult.serialize(result), TIMED_OUT, eventStart, Some(endTime), new Duration(stepStart, endTime)))
           case ActivityTaskFailed         =>
             steps.put(h.getEventId, h)
             val attributes: ActivityTaskFailedEventAttributes = h.getActivityTaskFailedEventAttributes
@@ -117,7 +118,8 @@ object HistoryFactory {
             val id: String = steps(eventId).getActivityTaskScheduledEventAttributes.getActivityId
             val endTime: DateTime = new DateTime(h.getEventTimestamp.getTime)
             val stepStart: DateTime = new DateTime(startTimes(id))
-            Some(StepEvent[StepEnum](eventId, Left(enumFromName(id)), s"${attributes.getReason}:${attributes.getDetails}", FAILED, startTime, Some(endTime), new Duration(stepStart, endTime)))
+            val result = Failed(s"${attributes.getReason}:${attributes.getDetails}")
+            Some(StepEvent[StepEnum](eventId, Left(enumFromName(id)), StepResult.serialize(result), FAILED, startTime, Some(endTime), new Duration(stepStart, endTime)))
           case TimerStarted               =>
             val attributes = h.getTimerStartedEventAttributes
             val timerId = attributes.getTimerId
@@ -155,7 +157,7 @@ object HistoryFactory {
     val firedSteps = for {
       (firedStep, firedCount) <- firedTimerSteps
       completedCount = completedStepCounts(firedStep)
-      if firedCount == completedCount
+      if firedCount >= completedCount
     } yield {
         // when the step no longer needs to be scheduled, the completedCount will exceed the firedCount
         firedStep

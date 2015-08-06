@@ -10,6 +10,7 @@ import com.bazaarvoice.sswf.{InputParser, SSWFStep}
 import scala.collection.JavaConversions.collectionAsScalaIterable
 import scala.reflect._
 
+case class WorkflowExecution(wfId: String, runId: String)
 
 /**
  * This is where you register and start workflows.
@@ -43,7 +44,6 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
                                                                                            stepScheduleToStartTimeoutSeconds: Int = 60,
                                                                                            inputParser: InputParser[SSWFInput]) {
 
-  case class WorkflowExecution(wfId: String, runId: String)
 
   /**
    * Register the domain,workflow,and activities if they are not already registered.

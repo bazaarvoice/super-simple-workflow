@@ -62,7 +62,7 @@ object TimedOut {
 }
 
 object StepResult {
-  def fromString(string: String): StepResult =
+  def deserialize(string: String): StepResult =
     string.split(":").toList match {
       case "SUCCESS" :: Nil => Success(None)
       case "SUCCESS" :: msg => Success(Some(msg.mkString(":")))
@@ -75,7 +75,7 @@ object StepResult {
       case _ => throw new IllegalArgumentException(string)
     }
 
-  def toString(message: StepResult) = message match {
+  def serialize(message: StepResult) = message match {
     case Success(Some(msg)) => "SUCCESS:" + msg
     case Success(None) => "SUCCESS"
     case InProgress(Some(msg)) => "IN_PROGRESS:" + msg
