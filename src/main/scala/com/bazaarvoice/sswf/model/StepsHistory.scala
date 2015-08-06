@@ -30,7 +30,6 @@ case class StepsHistory[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) : 
 object HistoryFactory {
   def from[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) : ClassTag](swfHistory: List[HistoryEvent],
                                                                              inputParser: InputParser[SSWFInput]): StepsHistory[SSWFInput, StepEnum] = {
-
     def enumFromName(name: String): StepEnum = Enum.valueOf(classTag[StepEnum].runtimeClass.asInstanceOf[Class[StepEnum]], name)
 
     def filterStarts(s: List[StepEvent[StepEnum]]): List[StepEvent[StepEnum]] = s match {
