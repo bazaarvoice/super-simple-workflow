@@ -47,6 +47,15 @@ Example:
 Notice how the ExtractStep code will always do its job without corrupting the system no matter how many times it's called
 and independent of whatever else has happened. This gives you the power to run, or re-run, the workflow any time
 and however often you like without worrying that it will do the wrong thing.
+
+Working example
+---------------
+
+Run the example with `sbt run` or through IDEA by running `ExampleWorkflowService`.
+Note that you must have AWS credentials in your env: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_KEY`, and `AWS_SECRET_ACCESS_KEY`, which is the same as `AWS_SECRET_KEY`.
+
+The example code is in `src/main/java/example`. This is everything you'll need to do to get up and running!
+
               
 
 set up your access to the BV maven repo:
