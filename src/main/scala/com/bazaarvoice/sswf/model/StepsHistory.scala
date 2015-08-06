@@ -37,7 +37,7 @@ object HistoryFactory {
       case Nil | _ :: Nil                                   =>
         s
       case first :: second :: rest if first.id == second.id =>
-        filterStarts(rest)
+        filterStarts(second :: rest)
       case first :: rest                                    =>
         first :: filterStarts(rest)
     }
