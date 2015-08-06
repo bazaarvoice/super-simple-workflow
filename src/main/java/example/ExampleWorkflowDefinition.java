@@ -18,7 +18,7 @@ public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWork
     // This results in a workflow whose steps are idempotent, and which is therefore restartable (and much less headachey).
     private static Map<String, String> state = new ConcurrentHashMap<>();
 
-    @Override public List<ExampleWorkflowSteps> workflow(final ExampleWorkflowInput exampleWorkflowInput) {
+    @Override public List<ExampleWorkflowSteps> workflow(final ExampleWorkflowInput exampleWorkflowInput, final StepsHistory<ExampleWorkflowInput, ExampleWorkflowSteps> history) {
         return Arrays.asList(ExampleWorkflowSteps.EXTRACT_STEP, ExampleWorkflowSteps.TRANSFORM_STEP, ExampleWorkflowSteps.LOAD_STEP);
     }
 

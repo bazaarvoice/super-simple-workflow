@@ -125,7 +125,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
     if (failedEvents.nonEmpty) {
       respond(fail(s"failed ${failedEvents.size} activities", s"$failedEvents"))
     } else {
-      for (pipe <- workflowDefinition.workflow(input)) {
+      for (pipe <- workflowDefinition.workflow(input, history)) {
         val lastOption: Option[StepEvent[StepEnum]] = history.events.filter(_.event == Left(pipe)).lastOption
         val result: Option[StepResult] = lastOption.map(l => {
           StepResult.deserialize(l.result)

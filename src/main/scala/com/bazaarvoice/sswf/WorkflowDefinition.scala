@@ -12,7 +12,7 @@ trait WorkflowDefinition[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep)] 
    * Simply return a list of the workflow steps to execute.
    * @param input The input to the workflow
    */
-  def workflow(input: SSWFInput): java.util.List[StepEnum]
+  def workflow(input: SSWFInput, history: StepsHistory[SSWFInput, StepEnum]): java.util.List[StepEnum]
 
   /**
    * A hook that gets called when the workflow fails. Use this for example to send
