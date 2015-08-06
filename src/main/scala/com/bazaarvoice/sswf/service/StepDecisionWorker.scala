@@ -87,14 +87,12 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
     def schedule(activity: Option[StepEnum]) = activity match {
       case None       =>
         val message = "No more activities to schedule."
-        //        LOG.info("Wf complete: %s".format(message))
         workflowDefinition.onFinish(input, history, message)
         var attributes: CompleteWorkflowExecutionDecisionAttributes = new CompleteWorkflowExecutionDecisionAttributes
         attributes = attributes.withResult(message)
 
         new Decision().withDecisionType(DecisionType.CompleteWorkflowExecution).withCompleteWorkflowExecutionDecisionAttributes(attributes)
       case Some(step) =>
-        //        LOG.info(s"scheduling $stage")
         val scheduleActivityTaskDecisionAttributes: ScheduleActivityTaskDecisionAttributes = new ScheduleActivityTaskDecisionAttributes()
            .withActivityId(step.name)
            .withActivityType(new ActivityType().withName(step.name).withVersion(step.version))
@@ -156,7 +154,6 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
       )
       events = events ::: newDecisionTask.getEvents.toList
     }
-    //    LOG.info("%sms to read event history".format(System.currentTimeMillis() - start))
     (newDecisionTask, events)
   }
 

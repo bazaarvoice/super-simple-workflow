@@ -12,7 +12,7 @@ trait SSWFStep {
   /** when to consider the Step thread hung and schedule another one.
     * This does not cancel the execution.
     */
-  def startToFinishTimeout: Int
+  def startToFinishTimeoutSeconds: Int
 
   /** How long to wait before the next attempt when the step returns InProgress */
   def inProgressTimerSeconds: Int

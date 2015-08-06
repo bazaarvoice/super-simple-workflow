@@ -22,7 +22,7 @@ public enum ExampleWorkflowSteps implements SSWFStep {
         return version;
     }
 
-    @Override public int startToFinishTimeout() {
+    @Override public int startToFinishTimeoutSeconds() {
         return startToFinishTimeout;
     }
 

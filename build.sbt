@@ -19,11 +19,6 @@ libraryDependencies ++= Seq(
     "com.amazonaws" % "aws-java-sdk" % "1.10.8"
 )
 
-//libraryDependencies ++= Seq(
-    //"org.scalatest" %% "scalatest10" % "2.0" % "test",
-    //"org.mockito" % "mockito-core" % "1.9.0" % "test"
-//)
-
 net.virtualvoid.sbt.graph.Plugin.graphSettings
 
 // Generate pom.xml so maven modules can depend on me.

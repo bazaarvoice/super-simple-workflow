@@ -58,7 +58,7 @@ object HistoryFactory {
           case WorkflowExecutionStarted   =>
             startTime = new DateTime(h.getEventTimestamp)
             input = h.getWorkflowExecutionStartedEventAttributes.getInput
-            Some(StepEvent[StepEnum](h.getEventId, Right(WorkflowEventToken), "STARTED", STARTED, startTime, None, new Duration(startTime, startTime)))
+            Some(StepEvent[StepEnum](h.getEventId, Right(WorkflowEventToken), "STARTED", STARTED, startTime, None, Duration.ZERO))
           case WorkflowExecutionCompleted =>
             val dt = new DateTime(h.getEventTimestamp)
             Some(StepEvent[StepEnum](h.getEventId, Right(WorkflowEventToken), "SUCCESS", COMPLETE, startTime, Some(dt), new Duration(startTime, dt)))

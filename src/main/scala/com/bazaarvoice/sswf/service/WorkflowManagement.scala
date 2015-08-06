@@ -133,7 +133,7 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
        .withExecution(new model.WorkflowExecution().withWorkflowId(workflowId).withRunId(runId))
 
     val iterateFn = (prev: History) => {
-      if (prev == null | prev.getNextPageToken == null) null
+      if (prev == null || prev.getNextPageToken == null) null
       else swf.getWorkflowExecutionHistory(request.withNextPageToken(prev.getNextPageToken))
     }
 
@@ -182,7 +182,7 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
              .withVersion(workflowVersion)
              .withDescription(s"workflow[$workflow/$workflowVersion] registered by SSWF at [${new Date()}}]")
              .withDefaultExecutionStartToCloseTimeout(workflowExecutionTimeoutSeconds.toString)
-             .withDefaultTaskStartToCloseTimeout(60.toString) // timeout for decision tasks
+             .withDefaultTaskStartToCloseTimeout(600.toString) // timeout for decision tasks
              .withDefaultChildPolicy(ChildPolicy.TERMINATE)
           )
         } catch {
@@ -222,10 +222,10 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
            .withVersion(activity.version)
            .withDomain(domain)
            .withDefaultTaskList(new TaskList().withName(taskList))
-           .withDefaultTaskHeartbeatTimeout(activity.startToFinishTimeout.toString)
+           .withDefaultTaskHeartbeatTimeout(activity.startToFinishTimeoutSeconds.toString)
            .withDefaultTaskScheduleToStartTimeout(stepScheduleToStartTimeoutSeconds.toString)
-           .withDefaultTaskScheduleToCloseTimeout((stepScheduleToStartTimeoutSeconds + activity.startToFinishTimeout).toString)
-           .withDefaultTaskStartToCloseTimeout(activity.startToFinishTimeout.toString)
+           .withDefaultTaskScheduleToCloseTimeout((stepScheduleToStartTimeoutSeconds + activity.startToFinishTimeoutSeconds).toString)
+           .withDefaultTaskStartToCloseTimeout(activity.startToFinishTimeoutSeconds.toString)
         )
       }
     }

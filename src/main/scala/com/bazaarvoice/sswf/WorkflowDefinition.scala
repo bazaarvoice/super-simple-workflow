@@ -35,7 +35,7 @@ trait WorkflowDefinition[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep)] 
 
   /**
    * Run whatever behaviour needs to be run for the given step.
-   * There is a recommended strategy for writing these things: see the Readme (TODO link)
+   * There is a recommended strategy for writing these things: see https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#writing-steps
    * @param step The action to take next
    * @param input The input to the workflow
    * @return The outcome of the execution.

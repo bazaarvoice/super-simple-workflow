@@ -12,6 +12,18 @@ Here's how it works:
 3. Define a "Controller" class that specifies the behaviour for each step.
 4. Register and start your workflow using a "WfService" class
 
+
+Working example
+---------------
+
+Run the example with `sbt run` or through IDEA by running `ExampleWorkflowService`.
+Note that you must have AWS credentials in your env: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_KEY`, and `AWS_SECRET_ACCESS_KEY`, which is the same as `AWS_SECRET_KEY`.
+
+The example code is in `src/main/java/example`. This is everything you'll need to do to get up and running!
+
+Writing Steps
+--------------
+
 Every time a step executes, it returns one of three results: Success, Failure, or InProgress. They can all contain
 messages for reporting later.
 
@@ -48,15 +60,6 @@ Notice how the ExtractStep code will always do its job without corrupting the sy
 and independent of whatever else has happened. This gives you the power to run, or re-run, the workflow any time
 and however often you like without worrying that it will do the wrong thing.
 
-Working example
----------------
-
-Run the example with `sbt run` or through IDEA by running `ExampleWorkflowService`.
-Note that you must have AWS credentials in your env: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_KEY`, and `AWS_SECRET_ACCESS_KEY`, which is the same as `AWS_SECRET_KEY`.
-
-The example code is in `src/main/java/example`. This is everything you'll need to do to get up and running!
-
-              
 
 set up your access to the BV maven repo:
 --------------------
