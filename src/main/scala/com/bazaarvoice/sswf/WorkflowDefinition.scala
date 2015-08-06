@@ -1,13 +1,14 @@
 package com.bazaarvoice.sswf
 
-import com.bazaarvoice.sswf.model.{StepResult, StepsHistory}
+import com.bazaarvoice.sswf.model.history.StepsHistory
+import com.bazaarvoice.sswf.model.result.StepResult
 
 /**
  * This is where you specify how the workflow executes.
  * @tparam SSWFInput The JVM object representing your workflow input.
  * @tparam StepEnum The enum containing workflow step definitions
  */
-trait WorkflowDefinition[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep)] {
+trait WorkflowDefinition[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep)] {
   /**
    * Simply return a list of the workflow steps to execute.
    * @param input The input to the workflow
@@ -33,9 +34,10 @@ trait WorkflowDefinition[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep)] 
    */
   def onFinish(input: SSWFInput, history: StepsHistory[SSWFInput, StepEnum], message: String): Unit
 
+
   /**
    * Run whatever behaviour needs to be run for the given step.
-   * There is a recommended strategy for writing these things: see the Readme (TODO link)
+   * There is a recommended strategy for writing these things: see https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#writing-steps
    * @param step The action to take next
    * @param input The input to the workflow
    * @return The outcome of the execution.

@@ -5,8 +5,9 @@ import java.util.UUID
 
 import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflow
 import com.amazonaws.services.simpleworkflow.model._
-import com.bazaarvoice.sswf.model._
-import com.bazaarvoice.sswf.{InputParser, SSWFStep, StepEventState, WorkflowDefinition}
+import com.bazaarvoice.sswf.model.history.{HistoryFactory, StepEvent, StepsHistory}
+import com.bazaarvoice.sswf.model.result._
+import com.bazaarvoice.sswf.{InputParser, WorkflowDefinition, WorkflowStep}
 import com.sun.istack.internal.{NotNull, Nullable}
 
 import scala.collection.JavaConversions._
@@ -15,33 +16,37 @@ import scala.reflect.ClassTag
 
 /**
  * The worker class responsible for scheduling workflow actions. The class is built so that you can plug it in to a scheduled service of your choice.
- * First, call <code>pollForWork()</code> to determine if a decision needs to be made, and then call <code>doWork()</code> to make the decision.
+ * First, call <code>pollForDecisionToMake()</code> to determine if a decision needs to be made, and then call <code>makeDecision()</code> to make the decision.
+ * <br/>
+ * You could obviously poll and work in the same thread, but remember that this worker can handle many concurrent workflows, so separating them lets you have one thread polling
+ * and then a pool of threads simultaneously working on scheduling decisions.
  * <br/>
  * Example:
  * <code>
  * runOne() {
- * task := worker.pollForWork()
+ * task := worker.pollForDecisionToMake()
  * if (task != null) {
- * threadPool.submit(() -> { worker.doWork(task) })
+ * threadPool.submit(() -> { worker.makeDecision(task) })
  * }
  * </code>
  *
- * {
- *
- *
- * @param domain The domain of the workflow: http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-dev-domain.html
- * @param taskList The task list to work within: http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-dev-task-lists.html
+ * @param domain The domain of the workflow: <a href="http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-dev-domain.html">AWS docs</a>
+ *               as well as <a href="https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#managing-versions-and-names-of-things"> the README</a>
+ * @param taskList If you execute the same workflow in different environments, use different task lists. Think of them as independent sets of actors working on the same logical workflow, but in
+ *                 different contexts (like production/qa/development/your machine).
+ *                 <a href="http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-dev-task-lists.html">AWS docs</a>
+ *                 as well as <a href="https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#managing-versions-and-names-of-things"> the README</a>
  * @param swf The SWF service client
  * @param inputParser see InputParser
  * @param workflowDefinition see StepsDefinition
  * @tparam SSWFInput The type of the parsed workflow input
  * @tparam StepEnum The enum containing workflow step definitions
  */
-class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) : ClassTag](domain: String,
-                                                                                           taskList: String,
-                                                                                           swf: AmazonSimpleWorkflow,
-                                                                                           inputParser: InputParser[SSWFInput],
-                                                                                           workflowDefinition: WorkflowDefinition[SSWFInput, StepEnum]) {
+class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](domain: String,
+                                                                                               taskList: String,
+                                                                                               swf: AmazonSimpleWorkflow,
+                                                                                               inputParser: InputParser[SSWFInput],
+                                                                                               workflowDefinition: WorkflowDefinition[SSWFInput, StepEnum]) {
   private[this] val identity = ManagementFactory.getRuntimeMXBean.getName
 
   /**
@@ -87,17 +92,15 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
     def schedule(activity: Option[StepEnum]) = activity match {
       case None       =>
         val message = "No more activities to schedule."
-        //        LOG.info("Wf complete: %s".format(message))
         workflowDefinition.onFinish(input, history, message)
         var attributes: CompleteWorkflowExecutionDecisionAttributes = new CompleteWorkflowExecutionDecisionAttributes
         attributes = attributes.withResult(message)
 
         new Decision().withDecisionType(DecisionType.CompleteWorkflowExecution).withCompleteWorkflowExecutionDecisionAttributes(attributes)
       case Some(step) =>
-        //        LOG.info(s"scheduling $stage")
         val scheduleActivityTaskDecisionAttributes: ScheduleActivityTaskDecisionAttributes = new ScheduleActivityTaskDecisionAttributes()
            .withActivityId(step.name)
-           .withActivityType(new ActivityType().withName(step.name).withVersion(step.version))
+           .withActivityType(new ActivityType().withName(step.name).withVersion(util.stepToVersion(step)))
            .withHeartbeatTimeout("NONE")
            .withTaskList(new TaskList().withName(taskList))
            .withInput(inputParser.serialize(input))
@@ -120,7 +123,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
       return respond(schedule(Some(history.firedTimers.head)))
     }
 
-    val failedEvents: List[StepEvent[StepEnum]] = history.events.filter(e => e.event.isLeft && e.state == StepEventState.FAILED).toList
+    val failedEvents: List[StepEvent[StepEnum]] = history.events.filter(e => e.event.isLeft && e.result.startsWith("FAILED")).toList
 
     if (failedEvents.nonEmpty) {
       respond(fail(s"failed ${failedEvents.size} activities", s"$failedEvents"))
@@ -156,7 +159,6 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
       )
       events = events ::: newDecisionTask.getEvents.toList
     }
-    //    LOG.info("%sms to read event history".format(System.currentTimeMillis() - start))
     (newDecisionTask, events)
   }
 

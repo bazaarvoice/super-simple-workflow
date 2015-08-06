@@ -1,5 +1,9 @@
-package com.bazaarvoice.sswf.model
+package com.bazaarvoice.sswf.model.result
 
+/**
+ * Messages to signal state transitions from action steps
+ * @param message An optional text description of what happened in the step
+ */
 sealed abstract class StepResult(message: Option[String]) {
   def isSuccessful: Boolean
   def isInProgress: Boolean

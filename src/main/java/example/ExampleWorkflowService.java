@@ -1,19 +1,20 @@
 package example;
 
+import com.amazonaws.AbortedException;
 import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflow;
 import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflowClient;
 import com.amazonaws.services.simpleworkflow.model.ActivityTask;
 import com.amazonaws.services.simpleworkflow.model.DecisionTask;
 import com.amazonaws.services.simpleworkflow.model.RespondActivityTaskCompletedRequest;
 import com.amazonaws.services.simpleworkflow.model.RespondDecisionTaskCompletedRequest;
+import com.amazonaws.services.simpleworkflow.model.WorkflowExecution;
 import com.amazonaws.services.simpleworkflow.model.WorkflowExecutionInfo;
-import com.bazaarvoice.sswf.model.StepEvent;
-import com.bazaarvoice.sswf.model.StepsHistory;
+import com.bazaarvoice.sswf.Builders;
+import com.bazaarvoice.sswf.model.history.StepEvent;
+import com.bazaarvoice.sswf.model.history.StepsHistory;
 import com.bazaarvoice.sswf.service.StepActionWorker;
 import com.bazaarvoice.sswf.service.StepDecisionWorker;
-import com.bazaarvoice.sswf.service.WorkflowExecution;
 import com.bazaarvoice.sswf.service.WorkflowManagement;
-import scala.reflect.ClassTag$;
 
 import java.util.Date;
 import java.util.List;
@@ -32,11 +33,34 @@ public class ExampleWorkflowService {
     final String taskList = "my-machine";
 
     final ExampleWorkflowInput.Parser inputParser = new ExampleWorkflowInput.Parser();
-    final ExampleWorkflowDefinition stepsDefinition = new ExampleWorkflowDefinition();
+    final ExampleWorkflowDefinition workflowDefinition = new ExampleWorkflowDefinition();
 
-    final StepDecisionWorker<ExampleWorkflowInput, ExampleWorkflowSteps> decisionWorker = new StepDecisionWorker<>(domain, taskList, swf, inputParser, stepsDefinition, ClassTag$.MODULE$.apply(ExampleWorkflowSteps.class));
-    final StepActionWorker<ExampleWorkflowInput, ExampleWorkflowSteps> actionWorker = new StepActionWorker<>(domain, taskList, swf, inputParser, stepsDefinition, ClassTag$.MODULE$.apply(ExampleWorkflowSteps.class));
-    final WorkflowManagement<ExampleWorkflowInput, ExampleWorkflowSteps> workflowManagement = new WorkflowManagement<ExampleWorkflowInput, ExampleWorkflowSteps>(domain, workflow, workflowVersion, taskList, swf, 60 * 60 * 24 * 30, 30, 30, inputParser, ClassTag$.MODULE$.apply(ExampleWorkflowSteps.class));
+    final StepDecisionWorker<ExampleWorkflowInput, ExampleWorkflowSteps> decisionWorker =
+        new Builders.StepDecisionWorkerBuilder<>(ExampleWorkflowInput.class, ExampleWorkflowSteps.class)
+            .setDomain(domain)
+            .setTaskList(taskList)
+            .setSwf(swf)
+            .setInputParser(inputParser)
+            .setWorkflowDefinition(workflowDefinition).build();
+    final StepActionWorker<ExampleWorkflowInput, ExampleWorkflowSteps> actionWorker =
+        new Builders.StepActionWorkerBuilder<>(ExampleWorkflowInput.class, ExampleWorkflowSteps.class)
+            .setDomain(domain)
+            .setTaskList(taskList)
+            .setSwf(swf)
+            .setInputParser(inputParser)
+            .setWorkflowDefinition(workflowDefinition).build();
+    final WorkflowManagement<ExampleWorkflowInput, ExampleWorkflowSteps> workflowManagement =
+        new Builders.WorkflowManagementBuilder<>(ExampleWorkflowInput.class, ExampleWorkflowSteps.class)
+            .setDomain(domain)
+            .setWorkflow(workflow)
+            .setWorkflowVersion(workflowVersion)
+            .setTaskList(taskList)
+            .setSwf(swf)
+            .setWorkflowExecutionTimeoutSeconds(60 * 60 * 24 * 30)
+            .setWorkflowExecutionRetentionPeriodDays(30)
+            .setStepScheduleToStartTimeoutSeconds(30)
+            .setInputParser(inputParser)
+            .build();
 
     final ScheduledExecutorService decisionExecutor = Executors.newSingleThreadScheduledExecutor();
     final ScheduledExecutorService actionExecutor = Executors.newScheduledThreadPool(3); // We'll let a few actions (from different workflow executions run cuncurrently)
@@ -58,6 +82,8 @@ public class ExampleWorkflowService {
                     System.out.println("Decision: Got no task...");
                 }
                 System.out.println("Decision: done");
+            } catch (AbortedException e) {
+                System.out.println("Decision thread shutting down.");
             } catch (Throwable t) { // Make sure this thread can't die silently!
                 System.err.println("Decision: unexpected exception. Continuing...");
                 t.printStackTrace(System.err);
@@ -86,6 +112,8 @@ public class ExampleWorkflowService {
                     System.out.println("Action: Got no task...");
                 }
                 System.out.println("Action: done");
+            } catch (AbortedException e) {
+                System.out.println("Action poller thread shutting down.");
             } catch (Throwable t) { // Make sure this thread can't die silently!
                 System.err.println("Action: unexpected exception polling/submitting. Continuing...");
                 t.printStackTrace(System.err);
@@ -107,6 +135,7 @@ public class ExampleWorkflowService {
         startWorkflowForFunAndProfit(service);
         // submit another one for profit
         startWorkflowForFunAndProfit(service);
+
 
         while (true) {
             Thread.sleep(10000);
@@ -137,8 +166,8 @@ public class ExampleWorkflowService {
         }
 
         // stop everything and exit
+        System.out.println("shutting down...");
         service.stop();
-        System.exit(0);
     }
 
     private static void startWorkflowForFunAndProfit(final ExampleWorkflowService service) {

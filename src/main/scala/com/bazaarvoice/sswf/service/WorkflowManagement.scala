@@ -4,13 +4,12 @@ import java.util.{Collections, Date}
 
 import com.amazonaws.services.simpleworkflow.model._
 import com.amazonaws.services.simpleworkflow.{AmazonSimpleWorkflow, model}
-import com.bazaarvoice.sswf.model.{HistoryFactory, StepsHistory}
-import com.bazaarvoice.sswf.{InputParser, SSWFStep}
+import com.bazaarvoice.sswf.model.history.{HistoryFactory, StepsHistory}
+import com.bazaarvoice.sswf.{InputParser, WorkflowStep}
 
 import scala.collection.JavaConversions.collectionAsScalaIterable
 import scala.reflect._
 
-case class WorkflowExecution(wfId: String, runId: String)
 
 /**
  * This is where you register and start workflows.
@@ -21,28 +20,37 @@ case class WorkflowExecution(wfId: String, runId: String)
  * This class is implemented so that you can call registerWorkflow() every time your app starts, and we will register anything that needs to be registered, so you should be able to manage your
  * whole workflow from this library.
  *
- * @param domain A logical scope for all your workflows. It mainly helps to reduce noise in all the SWF list() apis. See http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-dev-domain.html
- * @param workflow The id of your particular workflow. See "WorkflowType" in http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-dev-obj-ident.html
- * @param workflowVersion You can version workflows, although it's not clear what purpose that serves. Advice: just think of this as an administrative notation.
+ * @param domain The domain of the workflow: <a href="http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-dev-domain.html">AWS docs</a>
+ *               as well as <a href="https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#managing-versions-and-names-of-things"> the README</a>
  * @param taskList If you execute the same workflow in different environments, use different task lists. Think of them as independent sets of actors working on the same logical workflow, but in
  *                 different contexts (like production/qa/development/your machine).
+ *                 <a href="http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-dev-task-lists.html">AWS docs</a>
+ *                 as well as <a href="https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#managing-versions-and-names-of-things"> the README</a>
+ * @param workflow The id of your particular workflow. See "WorkflowType" in <a href="http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-dev-obj-ident.html">the AWS docs</a>
+ *                 as well as <a href="https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#managing-versions-and-names-of-things">the README</a>.
+ * @param workflowVersion You can version workflows, although it's not clear what purpose that serves. Advice: just think of this as an administrative notation. See
+ *                        <a href="https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#managing-versions-and-names-of-things">the README</a>.
  * @param swf The AWS SWF client
- * @param workflowExecutionRetentionPeriodInDays How long to keep _completed_ workflow information
+ * @param workflowExecutionTimeoutSeconds How long to let the entire workflow run. This only comes in to play if 1) The decision threads die or 2) A step gets into an "infinite loop" in which it
+ *                                        always returns InProgress without making any actual progress. The default is set to one month on the assumption that you'll monitor the workflow and
+ *                                        fix either of those problems if they occur, letting the workflow resume and complete. If you prefer to let the workflow fail, you'll want to set it lower.
+ * @param workflowExecutionRetentionPeriodDays How long to keep _completed_ workflow information. Default: one month.
  * @param stepScheduleToStartTimeoutSeconds The duration you expect to pass _after_ a task is scheduled, and _before_ an actionWorker picks it up. If there is always a free actionWorker, this is
  *                                          just the polling interval for actions to execute. If all the actionWorkers are busy, though, the action may time out waiting to start. This isn't
  *                                          harmful, though, since the decisionWorker will simply re-schedule it. Advice: make your actionWorker pool large enough that all scheduled work can
- *                                          execute immediately, and set this timeout to the polling interval for action work.
+ *                                          execute immediately, and set this timeout to the polling interval for action work. Default: 60s
+ * @param inputParser See InputParser
  * @tparam StepEnum The enum containing workflow step definitions
  */
-class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) : ClassTag](domain: String,
-                                                                                           workflow: String,
-                                                                                           workflowVersion: String,
-                                                                                           taskList: String,
-                                                                                           swf: AmazonSimpleWorkflow,
-                                                                                           workflowExecutionTimeoutSeconds: Int = 60 * 60 * 24 * 30, // default: one month
-                                                                                           workflowExecutionRetentionPeriodInDays: Int = 30,
-                                                                                           stepScheduleToStartTimeoutSeconds: Int = 60,
-                                                                                           inputParser: InputParser[SSWFInput]) {
+class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](domain: String,
+                                                                                               workflow: String,
+                                                                                               workflowVersion: String,
+                                                                                               taskList: String,
+                                                                                               swf: AmazonSimpleWorkflow,
+                                                                                               workflowExecutionTimeoutSeconds: Int = 60 * 60 * 24 * 30, // default: one month
+                                                                                               workflowExecutionRetentionPeriodDays: Int = 30,
+                                                                                               stepScheduleToStartTimeoutSeconds: Int = 60,
+                                                                                               inputParser: InputParser[SSWFInput]) {
 
 
   /**
@@ -73,7 +81,7 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
        .withInput(inputString)
     )
 
-    WorkflowExecution(workflowId, run.getRunId)
+    new WorkflowExecution().withRunId(run.getRunId).withWorkflowId(workflowId)
   }
 
 
@@ -133,7 +141,7 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
        .withExecution(new model.WorkflowExecution().withWorkflowId(workflowId).withRunId(runId))
 
     val iterateFn = (prev: History) => {
-      if (prev == null | prev.getNextPageToken == null) null
+      if (prev == null || prev.getNextPageToken == null) null
       else swf.getWorkflowExecutionHistory(request.withNextPageToken(prev.getNextPageToken))
     }
 
@@ -159,7 +167,7 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
           swf.registerDomain(new RegisterDomainRequest()
              .withName(domain)
              .withDescription(s"domain[$domain] created by SSWF at [${new Date()}]")
-             .withWorkflowExecutionRetentionPeriodInDays(workflowExecutionRetentionPeriodInDays.toString))
+             .withWorkflowExecutionRetentionPeriodInDays(workflowExecutionRetentionPeriodDays.toString))
         } catch {
           case d: DomainAlreadyExistsException =>
             // race condition. ignore...
@@ -182,7 +190,7 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
              .withVersion(workflowVersion)
              .withDescription(s"workflow[$workflow/$workflowVersion] registered by SSWF at [${new Date()}}]")
              .withDefaultExecutionStartToCloseTimeout(workflowExecutionTimeoutSeconds.toString)
-             .withDefaultTaskStartToCloseTimeout(60.toString) // timeout for decision tasks
+             .withDefaultTaskStartToCloseTimeout(600.toString) // timeout for decision tasks
              .withDefaultChildPolicy(ChildPolicy.TERMINATE)
           )
         } catch {
@@ -216,16 +224,17 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
 
     val activities = registered union deprecated
     def register(activity: StepEnum) {
-      if (!activities.contains((activity.name, activity.version))) {
+      val version = util.stepToVersion(activity)
+      if (!activities.contains((activity.name, version))) {
         swf.registerActivityType(new RegisterActivityTypeRequest()
            .withName(activity.name)
-           .withVersion(activity.version)
+           .withVersion(version)
            .withDomain(domain)
            .withDefaultTaskList(new TaskList().withName(taskList))
-           .withDefaultTaskHeartbeatTimeout(activity.startToFinishTimeout.toString)
+           .withDefaultTaskHeartbeatTimeout(activity.startToFinishTimeoutSeconds.toString)
            .withDefaultTaskScheduleToStartTimeout(stepScheduleToStartTimeoutSeconds.toString)
-           .withDefaultTaskScheduleToCloseTimeout((stepScheduleToStartTimeoutSeconds + activity.startToFinishTimeout).toString)
-           .withDefaultTaskStartToCloseTimeout(activity.startToFinishTimeout.toString)
+           .withDefaultTaskScheduleToCloseTimeout((stepScheduleToStartTimeoutSeconds + activity.startToFinishTimeoutSeconds).toString)
+           .withDefaultTaskStartToCloseTimeout(activity.startToFinishTimeoutSeconds.toString)
         )
       }
     }

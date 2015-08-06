@@ -1,35 +1,24 @@
-package com.bazaarvoice.sswf.model
+package com.bazaarvoice.sswf.model.history
 
-import java.{util, lang}
 import java.util.Collections
+import java.{lang, util}
 
 import com.amazonaws.services.simpleworkflow.model.EventType._
 import com.amazonaws.services.simpleworkflow.model._
-import com.bazaarvoice.sswf.StepEventState._
-import com.bazaarvoice.sswf.{InputParser, SSWFStep, StepEventState}
+import com.bazaarvoice.sswf.model.result.{Failed, StepResult, TimedOut}
+import com.bazaarvoice.sswf.{InputParser, WorkflowStep}
 import org.joda.time.{DateTime, Duration}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
-import scala.reflect.{ClassTag, classTag}
+import scala.reflect._
 
-object WorkflowEventToken {
-  override def toString = "WORKFLOW"
-}
-
-case class StepEvent[StepEnum <: (Enum[StepEnum] with SSWFStep) : ClassTag](id: Long,
-                                                                            event: Either[StepEnum, WorkflowEventToken.type],
-                                                                            result: String,
-                                                                            state: StepEventState,
-                                                                            start: DateTime,
-                                                                            end: Option[DateTime],
-                                                                            cumulativeActivityTime: Duration)
-
-case class StepsHistory[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) : ClassTag](input: SSWFInput, events: java.util.List[StepEvent[StepEnum]], firedTimers: java.util.Set[StepEnum])
-
+/**
+ * static factory for parsing SWF histories into our {@link StepsHistory}.
+ */
 object HistoryFactory {
-  def from[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) : ClassTag](swfHistory: List[HistoryEvent],
-                                                                             inputParser: InputParser[SSWFInput]): StepsHistory[SSWFInput, StepEnum] = {
+  def from[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](swfHistory: List[HistoryEvent],
+                                                                                 inputParser: InputParser[SSWFInput]): StepsHistory[SSWFInput, StepEnum] = {
 
     def enumFromName(name: String): StepEnum = Enum.valueOf(classTag[StepEnum].runtimeClass.asInstanceOf[Class[StepEnum]], name)
 
@@ -37,7 +26,7 @@ object HistoryFactory {
       case Nil | _ :: Nil                                   =>
         s
       case first :: second :: rest if first.id == second.id =>
-        filterStarts(rest)
+        filterStarts(second :: rest)
       case first :: rest                                    =>
         first :: filterStarts(rest)
     }
@@ -55,17 +44,27 @@ object HistoryFactory {
     val eventsRaw =
       for {h <- swfHistory} yield {
         EventType.fromValue(h.getEventType) match {
-          case WorkflowExecutionStarted   =>
+          case WorkflowExecutionStarted    =>
             startTime = new DateTime(h.getEventTimestamp)
             input = h.getWorkflowExecutionStartedEventAttributes.getInput
-            Some(StepEvent[StepEnum](h.getEventId, Right(WorkflowEventToken), "STARTED", STARTED, startTime, None, new Duration(startTime, startTime)))
-          case WorkflowExecutionCompleted =>
+            Some(StepEvent[StepEnum](h.getEventId, Right(WorkflowEventToken), "STARTED", startTime, None, Duration.ZERO))
+          case WorkflowExecutionCompleted  =>
             val dt = new DateTime(h.getEventTimestamp)
-            Some(StepEvent[StepEnum](h.getEventId, Right(WorkflowEventToken), "SUCCESS", COMPLETE, startTime, Some(dt), new Duration(startTime, dt)))
-          case WorkflowExecutionFailed    =>
+            Some(StepEvent[StepEnum](h.getEventId, Right(WorkflowEventToken), "SUCCESS", startTime, Some(dt), new Duration(startTime, dt)))
+          case WorkflowExecutionFailed     =>
             val dt = new DateTime(h.getEventTimestamp)
-            Some(StepEvent[StepEnum](h.getEventId, Right(WorkflowEventToken), "FAILED", FAILED, startTime, Some(dt), new Duration(startTime, dt)))
-          case ActivityTaskScheduled      =>
+            Some(StepEvent[StepEnum](h.getEventId, Right(WorkflowEventToken), "FAILED", startTime, Some(dt), new Duration(startTime, dt)))
+          case WorkflowExecutionCanceled   =>
+            val dt = new DateTime(h.getEventTimestamp)
+            Some(StepEvent[StepEnum](h.getEventId, Right(WorkflowEventToken), "CANCELED", startTime, Some(dt), new Duration(startTime, dt)))
+          case WorkflowExecutionTerminated =>
+            val dt = new DateTime(h.getEventTimestamp)
+            Some(StepEvent[StepEnum](h.getEventId, Right(WorkflowEventToken), "TERMINATED", startTime, Some(dt), new Duration(startTime, dt)))
+          case WorkflowExecutionTimedOut   =>
+            val dt = new DateTime(h.getEventTimestamp)
+            Some(StepEvent[StepEnum](h.getEventId, Right(WorkflowEventToken), "TIMED_OUT", startTime, Some(dt), new Duration(startTime, dt)))
+
+          case ActivityTaskScheduled =>
             steps.put(h.getEventId, h)
             val attributes: ActivityTaskScheduledEventAttributes = h.getActivityTaskScheduledEventAttributes
             val id: String = attributes.getActivityId
@@ -74,15 +73,15 @@ object HistoryFactory {
               startTimes.put(id, new DateTime(h.getEventTimestamp))
             }
             val stepStart: DateTime = new DateTime(startTimes(id))
-            Some(StepEvent[StepEnum](h.getEventId, Left(enumFromName(id)), "SCHEDULED", SCHEDULED, eventStart, None, new Duration(stepStart, eventStart)))
-          case ActivityTaskStarted        =>
+            Some(StepEvent[StepEnum](h.getEventId, Left(enumFromName(id)), "SCHEDULED", eventStart, None, new Duration(stepStart, eventStart)))
+          case ActivityTaskStarted   =>
             steps.put(h.getEventId, h)
             val eventId: lang.Long = h.getActivityTaskStartedEventAttributes.getScheduledEventId
             val id: String = steps(eventId).getActivityTaskScheduledEventAttributes.getActivityId
             val eventStart: DateTime = new DateTime(h.getEventTimestamp)
             val stepStart: DateTime = new DateTime(startTimes(id))
-            Some(StepEvent[StepEnum](eventId, Left(enumFromName(id)), "STARTED", STARTED, eventStart, None, new Duration(stepStart, eventStart)))
-          case ActivityTaskCompleted      =>
+            Some(StepEvent[StepEnum](eventId, Left(enumFromName(id)), "STARTED", eventStart, None, new Duration(stepStart, eventStart)))
+          case ActivityTaskCompleted =>
             steps.put(h.getEventId, h)
             val attributes: ActivityTaskCompletedEventAttributes = h.getActivityTaskCompletedEventAttributes
             val eventId: Long = attributes.getScheduledEventId
@@ -94,8 +93,8 @@ object HistoryFactory {
 
             val enum: StepEnum = enumFromName(id)
             completedStepCounts = completedStepCounts + (enum -> (completedStepCounts(enum) + 1))
-            Some(StepEvent[StepEnum](eventId, Left(enum), StepResult.serialize(result), COMPLETE, eventStart, Some(endTime), new Duration(stepStart, endTime)))
-          case ActivityTaskTimedOut       =>
+            Some(StepEvent[StepEnum](eventId, Left(enum), StepResult.serialize(result), eventStart, Some(endTime), new Duration(stepStart, endTime)))
+          case ActivityTaskTimedOut  =>
             steps.put(h.getEventId, h)
             val attributes: ActivityTaskTimedOutEventAttributes = h.getActivityTaskTimedOutEventAttributes
             val eventId: Long = attributes.getScheduledEventId
@@ -110,8 +109,8 @@ object HistoryFactory {
               }
             val endTime: DateTime = new DateTime(h.getEventTimestamp.getTime)
             val stepStart: DateTime = new DateTime(startTimes(id))
-            Some(StepEvent[StepEnum](eventId, Left(enumFromName(id)), StepResult.serialize(result), TIMED_OUT, eventStart, Some(endTime), new Duration(stepStart, endTime)))
-          case ActivityTaskFailed         =>
+            Some(StepEvent[StepEnum](eventId, Left(enumFromName(id)), StepResult.serialize(result), eventStart, Some(endTime), new Duration(stepStart, endTime)))
+          case ActivityTaskFailed    =>
             steps.put(h.getEventId, h)
             val attributes: ActivityTaskFailedEventAttributes = h.getActivityTaskFailedEventAttributes
             val eventId: Long = attributes.getScheduledEventId
@@ -119,23 +118,23 @@ object HistoryFactory {
             val endTime: DateTime = new DateTime(h.getEventTimestamp.getTime)
             val stepStart: DateTime = new DateTime(startTimes(id))
             val result = Failed(s"${attributes.getReason}:${attributes.getDetails}")
-            Some(StepEvent[StepEnum](eventId, Left(enumFromName(id)), StepResult.serialize(result), FAILED, startTime, Some(endTime), new Duration(stepStart, endTime)))
-          case TimerStarted               =>
+            Some(StepEvent[StepEnum](eventId, Left(enumFromName(id)), StepResult.serialize(result), startTime, Some(endTime), new Duration(stepStart, endTime)))
+          case TimerStarted          =>
             val attributes = h.getTimerStartedEventAttributes
             val timerId = attributes.getTimerId
             startedTimers.put(timerId, h)
             None
-          case TimerFired                 =>
+          case TimerFired            =>
             val attributes = h.getTimerFiredEventAttributes
             val timerId = attributes.getTimerId
             firedTimers.add(timerId)
             None
-          case TimerCanceled              =>
+          case TimerCanceled         =>
             val attributes = h.getTimerCanceledEventAttributes
             val timerId = attributes.getTimerId
             cancelledTimers.add(timerId)
             None
-          case _                          =>
+          case _                     => // There are many types of WF events which we simply do not care about.
             None
         }
       }

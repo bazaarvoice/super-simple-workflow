@@ -1,28 +1,22 @@
 package example;
 
-import com.bazaarvoice.sswf.SSWFStep;
+import com.bazaarvoice.sswf.WorkflowStep;
 
-public enum ExampleWorkflowSteps implements SSWFStep {
-    EXTRACT_STEP("0.0", 10, 120),
-    TRANSFORM_STEP("0.0", 10, 120),
-    LOAD_STEP("0.0", 10, 120)
+public enum ExampleWorkflowSteps implements WorkflowStep {
+    EXTRACT_STEP(10, 120),
+    TRANSFORM_STEP(10, 120),
+    LOAD_STEP(10, 120)
     ;
 
-    private String version;
     private int inProgressTimerSeconds;
     private int startToFinishTimeout;
 
-    ExampleWorkflowSteps(final String version, final int inProgressTimerSeconds, final int startToFinishTimeout) {
-        this.version = version;
+    ExampleWorkflowSteps(final int inProgressTimerSeconds, final int startToFinishTimeout) {
         this.inProgressTimerSeconds = inProgressTimerSeconds;
         this.startToFinishTimeout = startToFinishTimeout;
     }
 
-    @Override public String version() {
-        return version;
-    }
-
-    @Override public int startToFinishTimeout() {
+    @Override public int startToFinishTimeoutSeconds() {
         return startToFinishTimeout;
     }
 

@@ -1,10 +1,10 @@
 package example;
 
 import com.bazaarvoice.sswf.WorkflowDefinition;
-import com.bazaarvoice.sswf.model.InProgress;
-import com.bazaarvoice.sswf.model.StepResult;
-import com.bazaarvoice.sswf.model.StepsHistory;
-import com.bazaarvoice.sswf.model.Success;
+import com.bazaarvoice.sswf.model.result.InProgress;
+import com.bazaarvoice.sswf.model.result.StepResult;
+import com.bazaarvoice.sswf.model.history.StepsHistory;
+import com.bazaarvoice.sswf.model.result.Success;
 
 import java.util.Arrays;
 import java.util.List;
