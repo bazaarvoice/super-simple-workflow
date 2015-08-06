@@ -87,11 +87,21 @@ The built-in scala and idea support should do you just fine.
 build the project:
 --------------------
 
-```bash
+```
 sbt compile
-# or
-sbt test
+# to run
+sbt run 
+# to package
+sbt packageLocal #(etc...)
 ```
 
 Protip: Use a tilde (`sbt ~test`) to have sbt monitor the files and re-execute the task when anything changes.
 
+
+To cross-build for scala 2.10 and scala 2.11 (note the '+'):
+
+```
+sbt +compile
+# to package
+sbt +packageLocal #(etc...)
+```
