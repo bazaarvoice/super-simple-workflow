@@ -1,5 +1,6 @@
 package example;
 
+import com.amazonaws.AbortedException;
 import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflow;
 import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflowClient;
 import com.amazonaws.services.simpleworkflow.model.ActivityTask;
@@ -58,6 +59,8 @@ public class ExampleWorkflowService {
                     System.out.println("Decision: Got no task...");
                 }
                 System.out.println("Decision: done");
+            } catch (AbortedException e) {
+                System.out.println("Decision thread shutting down.");
             } catch (Throwable t) { // Make sure this thread can't die silently!
                 System.err.println("Decision: unexpected exception. Continuing...");
                 t.printStackTrace(System.err);
@@ -86,6 +89,8 @@ public class ExampleWorkflowService {
                     System.out.println("Action: Got no task...");
                 }
                 System.out.println("Action: done");
+            } catch (AbortedException e) {
+                System.out.println("Action poller thread shutting down.");
             } catch (Throwable t) { // Make sure this thread can't die silently!
                 System.err.println("Action: unexpected exception polling/submitting. Continuing...");
                 t.printStackTrace(System.err);
@@ -107,6 +112,7 @@ public class ExampleWorkflowService {
         startWorkflowForFunAndProfit(service);
         // submit another one for profit
         startWorkflowForFunAndProfit(service);
+
 
         while (true) {
             Thread.sleep(10000);
@@ -137,8 +143,8 @@ public class ExampleWorkflowService {
         }
 
         // stop everything and exit
+        System.out.println("shutting down...");
         service.stop();
-        System.exit(0);
     }
 
     private static void startWorkflowForFunAndProfit(final ExampleWorkflowService service) {

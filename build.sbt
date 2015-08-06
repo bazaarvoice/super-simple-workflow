@@ -26,3 +26,5 @@ net.virtualvoid.sbt.graph.Plugin.graphSettings
 
 // Generate pom.xml so maven modules can depend on me.
 publishMavenStyle := true
+
+mainClass in (Compile, run) := Some("example.ExampleWorkflowService")
