@@ -7,7 +7,7 @@ import com.bazaarvoice.sswf.model.{StepResult, StepsHistory}
  * @tparam SSWFInput The JVM object representing your workflow input.
  * @tparam StepEnum The enum containing workflow step definitions
  */
-trait WorkflowDefinition[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep)] {
+trait WorkflowDefinition[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep)] {
   /**
    * Simply return a list of the workflow steps to execute.
    * @param input The input to the workflow

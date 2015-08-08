@@ -6,11 +6,11 @@ import java.util.UUID
 import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflow
 import com.amazonaws.services.simpleworkflow.model._
 import com.bazaarvoice.sswf.model._
-import com.bazaarvoice.sswf.{InputParser, SSWFStep, StepEventState, WorkflowDefinition}
+import com.bazaarvoice.sswf.{InputParser, StepEventState, WorkflowDefinition, WorkflowStep}
 import com.sun.istack.internal.{NotNull, Nullable}
 
 import scala.collection.JavaConversions._
-import scala.reflect.ClassTag
+import scala.reflect._
 
 
 /**
@@ -37,12 +37,30 @@ import scala.reflect.ClassTag
  * @tparam SSWFInput The type of the parsed workflow input
  * @tparam StepEnum The enum containing workflow step definitions
  */
-class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) : ClassTag](domain: String,
-                                                                                           taskList: String,
-                                                                                           swf: AmazonSimpleWorkflow,
-                                                                                           inputParser: InputParser[SSWFInput],
-                                                                                           workflowDefinition: WorkflowDefinition[SSWFInput, StepEnum]) {
+class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](domain: String,
+                                                                                               taskList: String,
+                                                                                               swf: AmazonSimpleWorkflow,
+                                                                                               inputParser: InputParser[SSWFInput],
+                                                                                               workflowDefinition: WorkflowDefinition[SSWFInput, StepEnum]) {
   private[this] val identity = ManagementFactory.getRuntimeMXBean.getName
+
+  private[this] var _activityTypes: Map[String, Int] = null
+
+  private[this] def activityTypes: Map[String, Int] = {
+    if (_activityTypes == null) {
+      _activityTypes = for ((activityName, types) <- com.bazaarvoice.sswf.aws.util.getActivityTypes(swf, domain).groupBy(_.getActivityType.getName)) yield {
+          val maxVersion = types.map(_.getActivityType.getVersion.toInt).max
+          activityName -> maxVersion
+        }
+
+      for (enum <- classTag[StepEnum].runtimeClass.asInstanceOf[Class[StepEnum]].getEnumConstants) {
+        require(activityTypes.contains(enum.name), s"SWF is missing definition for $enum. Did you forget to call registerActivities()?")
+      }
+    }
+
+    _activityTypes
+  }
+
 
   /**
    * Find out if any workflows in our domain/taskList need decisions made.
@@ -95,7 +113,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
       case Some(step) =>
         val scheduleActivityTaskDecisionAttributes: ScheduleActivityTaskDecisionAttributes = new ScheduleActivityTaskDecisionAttributes()
            .withActivityId(step.name)
-           .withActivityType(new ActivityType().withName(step.name).withVersion(step.version))
+           .withActivityType(new ActivityType().withName(step.name).withVersion(activityTypes(step.name).toString))
            .withHeartbeatTimeout("NONE")
            .withTaskList(new TaskList().withName(taskList))
            .withInput(inputParser.serialize(input))

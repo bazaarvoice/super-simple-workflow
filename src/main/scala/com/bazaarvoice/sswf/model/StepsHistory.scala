@@ -6,7 +6,7 @@ import java.util.Collections
 import com.amazonaws.services.simpleworkflow.model.EventType._
 import com.amazonaws.services.simpleworkflow.model._
 import com.bazaarvoice.sswf.StepEventState._
-import com.bazaarvoice.sswf.{InputParser, SSWFStep, StepEventState}
+import com.bazaarvoice.sswf.{InputParser, WorkflowStep, StepEventState}
 import org.joda.time.{DateTime, Duration}
 
 import scala.collection.JavaConversions._
@@ -17,7 +17,7 @@ object WorkflowEventToken {
   override def toString = "WORKFLOW"
 }
 
-case class StepEvent[StepEnum <: (Enum[StepEnum] with SSWFStep) : ClassTag](id: Long,
+case class StepEvent[StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](id: Long,
                                                                             event: Either[StepEnum, WorkflowEventToken.type],
                                                                             result: String,
                                                                             state: StepEventState,
@@ -25,10 +25,10 @@ case class StepEvent[StepEnum <: (Enum[StepEnum] with SSWFStep) : ClassTag](id: 
                                                                             end: Option[DateTime],
                                                                             cumulativeActivityTime: Duration)
 
-case class StepsHistory[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) : ClassTag](input: SSWFInput, events: java.util.List[StepEvent[StepEnum]], firedTimers: java.util.Set[StepEnum])
+case class StepsHistory[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](input: SSWFInput, events: java.util.List[StepEvent[StepEnum]], firedTimers: java.util.Set[StepEnum])
 
 object HistoryFactory {
-  def from[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) : ClassTag](swfHistory: List[HistoryEvent],
+  def from[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](swfHistory: List[HistoryEvent],
                                                                              inputParser: InputParser[SSWFInput]): StepsHistory[SSWFInput, StepEnum] = {
 
     def enumFromName(name: String): StepEnum = Enum.valueOf(classTag[StepEnum].runtimeClass.asInstanceOf[Class[StepEnum]], name)

@@ -5,12 +5,12 @@ import java.lang.management.ManagementFactory
 import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflow
 import com.amazonaws.services.simpleworkflow.model._
 import com.bazaarvoice.sswf.model.StepResult
-import com.bazaarvoice.sswf.{InputParser, SSWFStep, WorkflowDefinition}
+import com.bazaarvoice.sswf.{InputParser, WorkflowStep, WorkflowDefinition}
 import com.sun.istack.internal.{NotNull, Nullable}
 
 import scala.reflect._
 
-class StepActionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) : ClassTag](domain: String,
+class StepActionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](domain: String,
                                                                                          taskList: String,
                                                                                          swf: AmazonSimpleWorkflow,
                                                                                          inputParser: InputParser[SSWFInput],

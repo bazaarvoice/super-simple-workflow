@@ -4,11 +4,12 @@ import java.util.{Collections, Date}
 
 import com.amazonaws.services.simpleworkflow.model._
 import com.amazonaws.services.simpleworkflow.{AmazonSimpleWorkflow, model}
+import com.bazaarvoice.sswf.aws.util.getActivityTypes
 import com.bazaarvoice.sswf.model.{HistoryFactory, StepsHistory}
-import com.bazaarvoice.sswf.{InputParser, SSWFStep}
+import com.bazaarvoice.sswf.{InputParser, WorkflowStep}
 
-import scala.collection.JavaConversions.collectionAsScalaIterable
-import scala.reflect._
+import scala.collection.JavaConversions._
+import scala.reflect.{ClassTag, classTag}
 
 case class WorkflowExecution(wfId: String, runId: String)
 
@@ -34,15 +35,15 @@ case class WorkflowExecution(wfId: String, runId: String)
  *                                          execute immediately, and set this timeout to the polling interval for action work.
  * @tparam StepEnum The enum containing workflow step definitions
  */
-class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) : ClassTag](domain: String,
-                                                                                           workflow: String,
-                                                                                           workflowVersion: String,
-                                                                                           taskList: String,
-                                                                                           swf: AmazonSimpleWorkflow,
-                                                                                           workflowExecutionTimeoutSeconds: Int = 60 * 60 * 24 * 30, // default: one month
-                                                                                           workflowExecutionRetentionPeriodInDays: Int = 30,
-                                                                                           stepScheduleToStartTimeoutSeconds: Int = 60,
-                                                                                           inputParser: InputParser[SSWFInput]) {
+class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](domain: String,
+                                                                                               workflow: String,
+                                                                                               workflowVersion: String,
+                                                                                               taskList: String,
+                                                                                               swf: AmazonSimpleWorkflow,
+                                                                                               workflowExecutionTimeoutSeconds: Int = 60 * 60 * 24 * 30, // default: one month
+                                                                                               workflowExecutionRetentionPeriodInDays: Int = 30,
+                                                                                               stepScheduleToStartTimeoutSeconds: Int = 60,
+                                                                                               inputParser: InputParser[SSWFInput]) {
 
 
   /**
@@ -193,33 +194,22 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with SSWFStep) :
     }
   }
 
-  private[this] def streamActivityTypes(listActivityTypesRequest: ListActivityTypesRequest): Set[(String, String)] = {
-    val iterateFn = (prev: ActivityTypeInfos) =>
-      if (prev == null || prev.getNextPageToken == null) null
-      else swf.listActivityTypes(listActivityTypesRequest.withNextPageToken(prev.getNextPageToken))
-
-    Stream
-       .iterate(swf.listActivityTypes(listActivityTypesRequest))(iterateFn)
-       .takeWhile(_ != null)
-       .flatten(r => collectionAsScalaIterable(r.getTypeInfos))
-       .map(i => (i.getActivityType.getName, i.getActivityType.getVersion))
-       .toSet
-  }
-
   private[this] def registerActivities() {
-    val baseRequest: ListActivityTypesRequest = new ListActivityTypesRequest()
-       .withDomain(domain)
-       .withMaximumPageSize(100)
+    val registered = getActivityTypes(swf, domain)
 
-    val registered = streamActivityTypes(baseRequest.withRegistrationStatus(RegistrationStatus.REGISTERED))
-    val deprecated = streamActivityTypes(baseRequest.withRegistrationStatus(RegistrationStatus.DEPRECATED))
+    val activities = registered.groupBy(info => info.getActivityType.getName).withDefaultValue(Nil)
 
-    val activities = registered union deprecated
     def register(activity: StepEnum) {
-      if (!activities.contains((activity.name, activity.version))) {
+      val activityDescription = s"${activity.name}:${activity.inProgressTimerSeconds}:${activity.startToFinishTimeoutSeconds}"
+      val existingCopies = activities(activity.name)
+
+      if (!existingCopies.contains((_: ActivityTypeInfo).getDescription == activityDescription)) {
+        val highestVersion = (0 :: existingCopies.map(_.getActivityType.getVersion.toInt)).max
+        val nextVersion = highestVersion + 1
         swf.registerActivityType(new RegisterActivityTypeRequest()
            .withName(activity.name)
-           .withVersion(activity.version)
+           .withDescription(activityDescription)
+           .withVersion(nextVersion.toString)
            .withDomain(domain)
            .withDefaultTaskList(new TaskList().withName(taskList))
            .withDefaultTaskHeartbeatTimeout(activity.startToFinishTimeoutSeconds.toString)
