@@ -5,13 +5,21 @@ Simple Workflow is not simple. Let's really simplify it!
 
 Here's how it works:
 
-1. Define an Enum capturing all the potential steps of your workflow. These contain metadata about timeouts, etc.
-2. Define a "Steps" class that returns a list of steps to execute. You get to look at the workflow input, but 
-   not the history. The idea is that you define a workflow that's easy to predict and consists of a series of steps
-   to completion.
-3. Define a "Controller" class that specifies the behaviour for each step.
-4. Register and start your workflow using a "WfService" class
+1. Define an `InputParser` class that tells sswf how to serialize your workflow input.
+2. Define an Enum capturing all the potential steps of your workflow (extending `WorkflowStep`). These contain metadata about timeouts, etc.
+3. Define a `WorkflowDefinition` class:
+    * The `workflow` method returns a list of steps to execute. You get to look at the workflow input, but not the history. 
+      The idea is that you define a workflow that's easy to predict and consists of a series of steps to completion.
+    * The `act` method specifies the behaviour for each step.
+4. Register and start your workflow using the `WorkflowService` class
 
+One big thing that sticks out here is that your workflow is just a sequence of steps. There's no branching or conditional execution of steps.
+In our experience, most workflows wind up being almost, if not entirely, linear. Deciding to just support that use case means that we can make it
+drop-dead simple.
+
+If you're thinking that you need branching because some states don't need to execute sometimes, you can achieve the same effect by just having
+those states say `Success("Nothing to do!")`. You would only really need branching if you wanted to do one of two totally different things based on the 
+result of some step.
 
 Working example
 ---------------
@@ -20,6 +28,28 @@ Run the example with `sbt run` or through IDEA by running `ExampleWorkflowServic
 Note that you must have AWS credentials in your env: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_KEY`, and `AWS_SECRET_ACCESS_KEY`, which is the same as `AWS_SECRET_KEY`.
 
 The example code is in `src/main/java/example`. This is everything you'll need to do to get up and running!
+
+
+Managing Versions and Names of Things
+---------------------------
+
+When you're dealing with SSWF, you have to contend with domains, workflows, task lists, steps, and versions of workflows and steps.
+So, what's the right way to think about and use these things?
+
+* A *Domain* is just a handy way to group workflows. You probably just want one domain per project, even if your project has several workflows.
+
+* A *Workflow* is the logical high-level task you're trying to accomplish. So, if you have an ETL job to do, that's your workflow. You may start out with
+  3 steps and then add more later, but it's still the same workflow.
+
+* But if you add more steps, then the old workflow workers (who were compiled against the 3-step version) won't have a clue what to do with the new steps
+  (read: `IllegalStateException`). This is where the `Workflow Version` comes in. Each worker is polling SWF for a specific version of the workflow, so 
+  as long as you bump the version whenever you change the workflow, you'll be golden.
+
+* The *Steps* are the (ahem) individual steps of the workflow. They are really just messages that the sswf workers will use to invoke your `WorkflowDefinition#act` method.
+  We could use strings, but you define them in an enum so there is a clear symbolic way to reference them in code. They also contain a small amount of configuration,
+  like how long sswf should let the step run before timing it out.
+  
+
 
 Writing Steps
 --------------
@@ -46,7 +76,7 @@ Example:
           - if extractState.defined && extractState.isComplete:
               return new Success("EXTRACT done: " + extractState.summary)
 
-          - needsExtract := decideWhetherItsTimeForAnEXTRACT():
+          - needsExtract := decideWhetherWeNeedAnExtract():
           - if needsExtract:
               startExtract()
               return new InProgress("Started EXTRACT")
