@@ -1,6 +1,7 @@
 package com.bazaarvoice.sswf.model.history
 
 import com.bazaarvoice.sswf.WorkflowStep
+import com.bazaarvoice.sswf.model.ScheduledStep
 import org.joda.time.{DateTime, Duration}
 
 import scala.reflect.ClassTag
@@ -8,7 +9,7 @@ import scala.reflect.ClassTag
 
 /**
  * An individual event in the history
- * @param id An identifier for the logical step. This is not unique in the history. All events related to a particular activity will share the same id.
+ * @param canonicalId An identifier for the logical step. This is not unique in the history. All events related to a particular activity will share the same id.
  * @param event The particular kind of event it is.
  * @param result The result of the event (SUCCESS, FAILED, TIMED_OUT, etc, etc).
  * @param start The start time of the individual activity (time since it was scheduled).
@@ -16,8 +17,9 @@ import scala.reflect.ClassTag
  * @param cumulativeActivityTime The amount of time since the logical step was first scheduled.
  * @tparam StepEnum The type of the workflow step
  */
-case class StepEvent[StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](id: Long,
-                                                                                event: Either[StepEnum, WorkflowEventToken.type],
+case class StepEvent[StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](canonicalId: Long,
+                                                                                uniqueId: Long,
+                                                                                event: Either[ScheduledStep[StepEnum], WorkflowEventToken.type],
                                                                                 result: String,
                                                                                 start: DateTime,
                                                                                 end: Option[DateTime],
@@ -31,4 +33,6 @@ case class StepEvent[StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](
  * @tparam SSWFInput The type of the workflow input.
  * @tparam StepEnum The type of the workflow steps
  */
-case class StepsHistory[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](input: SSWFInput, events: java.util.List[StepEvent[StepEnum]], firedTimers: java.util.Set[StepEnum])
+case class StepsHistory[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](input: SSWFInput,
+                                                                                              events: java.util.List[StepEvent[StepEnum]],
+                                                                                              firedTimers: java.util.Set[ScheduledStep[StepEnum]])

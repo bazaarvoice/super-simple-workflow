@@ -10,6 +10,8 @@ import com.sun.istack.internal.{NotNull, Nullable}
 
 import scala.reflect._
 
+import com.bazaarvoice.sswf.util.unpackInput
+
 /**
  * The worker class responsible for executing workflow steps. The class is built so that you can plug it in to a scheduled service of your choice.
  * First, call <code>pollForWork()</code> to determine if a step needs to be executed, and then call <code>doWork()</code> to execute the step.
@@ -78,9 +80,9 @@ class StepActionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep)
 
 
     val task = Enum.valueOf(classTag[StepEnum].runtimeClass.asInstanceOf[Class[StepEnum]], activityTask.getActivityId)
-    val input = inputParser.deserialize(activityTask.getInput)
+    val (stepInput, wfInput) = unpackInput(inputParser)(activityTask.getInput)
 
-    val result = workflowDefinition.act(task, input)
+    val result = workflowDefinition.act(task, wfInput, stepInput)
 
     val response: RespondActivityTaskCompletedRequest = new RespondActivityTaskCompletedRequest().withResult(StepResult.serialize(result)).withTaskToken(activityTask.getTaskToken)
 

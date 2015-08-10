@@ -73,14 +73,18 @@ public class ExampleWorkflowService {
         decisionExecutor.scheduleAtFixedRate(() -> {
             try {
                 System.out.println("Decision: polling for work");
-                final DecisionTask task = decisionWorker.pollForDecisionsToMake();
-                if (task != null) {
+                DecisionTask task = decisionWorker.pollForDecisionsToMake();
+
+                while (task != null) {
                     System.out.println("Decision: got task for " + task.getWorkflowExecution());
                     final RespondDecisionTaskCompletedRequest completedRequest = decisionWorker.makeDecision(task);
                     System.out.println("Decision: made decision " + (completedRequest == null ? "null" : completedRequest.getDecisions()));
-                } else {
-                    System.out.println("Decision: Got no task...");
+
+                    task = decisionWorker.pollForDecisionsToMake();
                 }
+
+                System.out.println("Decision: Got no task...");
+
                 System.out.println("Decision: done");
             } catch (AbortedException e) {
                 System.out.println("Decision thread shutting down.");
@@ -93,13 +97,14 @@ public class ExampleWorkflowService {
         actionExecutor.scheduleAtFixedRate(() -> {
             try {
                 System.out.println("Action: polling for work");
-                final ActivityTask task = actionWorker.pollForWork();
-                if (task != null) {
+                ActivityTask task = actionWorker.pollForWork();
+                while (task != null) {
+                    final ActivityTask finalTask = task;
                     actionWorkers.submit(() -> {
                         try {
-                            System.out.println("Action: got task for " + task.getWorkflowExecution());
-                            final RespondActivityTaskCompletedRequest completedRequest = actionWorker.doWork(task);
-                            System.out.println("Action: complete for " + task.getWorkflowExecution() + ": " + (completedRequest == null ? "null" : completedRequest.getResult()));
+                            System.out.println("Action: got task for " + finalTask.getWorkflowExecution());
+                            final RespondActivityTaskCompletedRequest completedRequest = actionWorker.doWork(finalTask);
+                            System.out.println("Action: complete for " + finalTask.getWorkflowExecution() + ": " + (completedRequest == null ? "null" : completedRequest.getResult()));
                         } catch (Throwable t) {
                             // This thread isn't important to safeguard, since the executor will make another one next submit().
                             // I'm printing the error for your benefit in the example.
@@ -108,9 +113,11 @@ public class ExampleWorkflowService {
                             throw t;
                         }
                     });
-                } else {
-                    System.out.println("Action: Got no task...");
+                    task = actionWorker.pollForWork();
                 }
+
+                System.out.println("Action: Got no task...");
+
                 System.out.println("Action: done");
             } catch (AbortedException e) {
                 System.out.println("Action poller thread shutting down.");

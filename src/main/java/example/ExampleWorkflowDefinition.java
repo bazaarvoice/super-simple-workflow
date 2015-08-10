@@ -1,10 +1,13 @@
 package example;
 
 import com.bazaarvoice.sswf.WorkflowDefinition;
+import com.bazaarvoice.sswf.model.ScheduledStep;
+import com.bazaarvoice.sswf.model.history.StepsHistory;
 import com.bazaarvoice.sswf.model.result.InProgress;
 import com.bazaarvoice.sswf.model.result.StepResult;
-import com.bazaarvoice.sswf.model.history.StepsHistory;
 import com.bazaarvoice.sswf.model.result.Success;
+import scala.Option;
+import scala.Some;
 
 import java.util.Arrays;
 import java.util.List;
@@ -18,8 +21,13 @@ public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWork
     // This results in a workflow whose steps are idempotent, and which is therefore restartable (and much less headachey).
     private static Map<String, String> state = new ConcurrentHashMap<>();
 
-    @Override public List<ExampleWorkflowSteps> workflow(final ExampleWorkflowInput exampleWorkflowInput) {
-        return Arrays.asList(ExampleWorkflowSteps.EXTRACT_STEP, ExampleWorkflowSteps.TRANSFORM_STEP, ExampleWorkflowSteps.LOAD_STEP);
+    @Override public List<ScheduledStep<ExampleWorkflowSteps>> workflow(final ExampleWorkflowInput exampleWorkflowInput) {
+        return Arrays.asList(
+            new ScheduledStep<>(ExampleWorkflowSteps.EXTRACT_STEP),
+            new ScheduledStep<>(ExampleWorkflowSteps.TRANSFORM_STEP, new Some<>("format1->format2")),
+            new ScheduledStep<>(ExampleWorkflowSteps.TRANSFORM_STEP, new Some<>("format2->format3")),
+            new ScheduledStep<>(ExampleWorkflowSteps.LOAD_STEP)
+        );
     }
 
     @Override public void onFail(final ExampleWorkflowInput exampleWorkflowInput, final StepsHistory<ExampleWorkflowInput, ExampleWorkflowSteps> history, final String message) {
@@ -30,7 +38,7 @@ public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWork
         System.out.println("Workflow(" + exampleWorkflowInput.getName() + ") Finished!!! " + message);
     }
 
-    @Override public StepResult act(final ExampleWorkflowSteps step, final ExampleWorkflowInput exampleWorkflowInput) {
+    @Override public StepResult act(final ExampleWorkflowSteps step, final ExampleWorkflowInput exampleWorkflowInput, final Option<String> stepInput) {
         switch (step) {
             case EXTRACT_STEP:
                 if (!Objects.equals(state.get(exampleWorkflowInput.getName()), "extract finished")) {
@@ -39,9 +47,9 @@ public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWork
                 }
                 return new Success("Extract is done.");
             case TRANSFORM_STEP:
-                if (!Objects.equals(state.get(exampleWorkflowInput.getName()), "transform finished")) {
-                    state.put(exampleWorkflowInput.getName(), "transform finished");
-                    return new InProgress("transform started");
+                if (!Objects.equals(state.get(exampleWorkflowInput.getName()), "transform finished (" + stepInput + ")")) {
+                    state.put(exampleWorkflowInput.getName(), "transform finished (" + stepInput + ")");
+                    return new InProgress("transform started (" + stepInput + ")");
                 }
                 return new Success("Nothing to do!");
             case LOAD_STEP:

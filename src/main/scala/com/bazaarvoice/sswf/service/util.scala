@@ -1,7 +1,8 @@
 package com.bazaarvoice.sswf.service
 
-import com.bazaarvoice.sswf.WorkflowStep
+import com.bazaarvoice.sswf.{InputParser, WorkflowStep}
 
 object util {
   private[service] def stepToVersion[StepEnum <: (Enum[StepEnum] with WorkflowStep)](step: StepEnum): String = s"${step.inProgressTimerSeconds}.${step.inProgressTimerSeconds}"
+
 }

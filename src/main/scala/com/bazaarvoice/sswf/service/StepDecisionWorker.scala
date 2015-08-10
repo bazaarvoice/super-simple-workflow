@@ -5,8 +5,10 @@ import java.util.UUID
 
 import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflow
 import com.amazonaws.services.simpleworkflow.model._
+import com.bazaarvoice.sswf.model.ScheduledStep
 import com.bazaarvoice.sswf.model.history.{HistoryFactory, StepEvent, StepsHistory}
 import com.bazaarvoice.sswf.model.result._
+import com.bazaarvoice.sswf.util.packInput
 import com.bazaarvoice.sswf.{InputParser, WorkflowDefinition, WorkflowStep}
 import com.sun.istack.internal.{NotNull, Nullable}
 
@@ -89,7 +91,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     def respond(d: Decision): RespondDecisionTaskCompletedRequest =
       new RespondDecisionTaskCompletedRequest().withDecisions(List(d)).withTaskToken(decisionTask.getTaskToken)
 
-    def schedule(activity: Option[StepEnum]) = activity match {
+    def schedule(activity: Option[ScheduledStep[StepEnum]]) = activity match {
       case None       =>
         val message = "No more activities to schedule."
         workflowDefinition.onFinish(input, history, message)
@@ -99,11 +101,11 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
         new Decision().withDecisionType(DecisionType.CompleteWorkflowExecution).withCompleteWorkflowExecutionDecisionAttributes(attributes)
       case Some(step) =>
         val scheduleActivityTaskDecisionAttributes: ScheduleActivityTaskDecisionAttributes = new ScheduleActivityTaskDecisionAttributes()
-           .withActivityId(step.name)
-           .withActivityType(new ActivityType().withName(step.name).withVersion(util.stepToVersion(step)))
+           .withActivityId(step.step.name)
+           .withActivityType(new ActivityType().withName(step.step.name).withVersion(util.stepToVersion(step.step)))
            .withHeartbeatTimeout("NONE")
            .withTaskList(new TaskList().withName(taskList))
-           .withInput(inputParser.serialize(input))
+           .withInput(packInput(inputParser)(step.stepInput, input))
 
         new Decision()
            .withDecisionType(DecisionType.ScheduleActivityTask)
@@ -128,16 +130,16 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     if (failedEvents.nonEmpty) {
       respond(fail(s"failed ${failedEvents.size} activities", s"$failedEvents"))
     } else {
-      for (pipe <- workflowDefinition.workflow(input)) {
-        val lastOption: Option[StepEvent[StepEnum]] = history.events.filter(_.event == Left(pipe)).lastOption
+      for (step <- workflowDefinition.workflow(input)) {
+        val lastOption: Option[StepEvent[StepEnum]] = history.events.filter(_.event == Left(step)).lastOption
         val result: Option[StepResult] = lastOption.map(l => {
           StepResult.deserialize(l.result)
         })
         result match {
-          case None                => return respond(schedule(Some(pipe)))
-          case Some(Failed(m))     => return respond(fail(s"Failed stage $pipe", Failed(m).toString))
-          case Some(InProgress(m)) => return respond(waitRetry(pipe))
-          case Some(TimedOut(m))   => return respond(waitRetry(pipe))
+          case None                => return respond(schedule(Some(step)))
+          case Some(Failed(m))     => return respond(fail(s"Failed stage $step", Failed(m).toString))
+          case Some(InProgress(m)) => return respond(waitRetry(step))
+          case Some(TimedOut(m))   => return respond(waitRetry(step))
           case Some(Success(m))    => ()
         }
       }
@@ -162,8 +164,11 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     (newDecisionTask, events)
   }
 
-  private[this] def waitRetry(retry: StepEnum) = new Decision().withDecisionType(DecisionType.StartTimer).withStartTimerDecisionAttributes(
-    new StartTimerDecisionAttributes().withTimerId(UUID.randomUUID().toString).withControl(retry.name()).withStartToFireTimeout(retry.inProgressTimerSeconds.toString)
+  private[this] def waitRetry(retry: ScheduledStep[StepEnum]) = new Decision().withDecisionType(DecisionType.StartTimer).withStartTimerDecisionAttributes(
+    new StartTimerDecisionAttributes()
+       .withTimerId(UUID.randomUUID().toString)
+       .withControl(retry.step.name() + "\0" + retry.stepInput.getOrElse("\0"))
+       .withStartToFireTimeout(retry.step.inProgressTimerSeconds.toString)
   )
 
 }

@@ -1,5 +1,6 @@
 package com.bazaarvoice.sswf
 
+import com.bazaarvoice.sswf.model.ScheduledStep
 import com.bazaarvoice.sswf.model.history.StepsHistory
 import com.bazaarvoice.sswf.model.result.StepResult
 
@@ -13,7 +14,7 @@ trait WorkflowDefinition[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
    * Simply return a list of the workflow steps to execute.
    * @param input The input to the workflow
    */
-  def workflow(input: SSWFInput): java.util.List[StepEnum]
+  def workflow(input: SSWFInput): java.util.List[ScheduledStep[StepEnum]]
 
   /**
    * A hook that gets called when the workflow fails. Use this for example to send
@@ -42,5 +43,5 @@ trait WorkflowDefinition[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
    * @param input The input to the workflow
    * @return The outcome of the execution.
    */
-  def act(step: StepEnum, input: SSWFInput): StepResult
+  def act(step: StepEnum, input: SSWFInput, stepInput: Option[String]): StepResult
 }
