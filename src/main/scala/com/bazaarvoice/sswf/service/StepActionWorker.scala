@@ -15,7 +15,7 @@ import com.bazaarvoice.sswf.util.unpackInput
 /**
  * The worker class responsible for executing workflow steps. The class is built so that you can plug it in to a scheduled service of your choice.
  * First, call <code>pollForWork()</code> to determine if a step needs to be executed, and then call <code>doWork()</code> to execute the step.
- * The actual logic for the step is provided by your {@link WorkflowDefinition#act()}.
+ * The actual logic for the step is provided by your <code>WorkflowDefinition#act()</code>.
  * <br/>
  * You could obviously poll and work in the same thread, but remember that this worker can handle many concurrent workflows, so separating them lets you have one thread polling
  * and then a pool of threads simultaneously working on actions.
@@ -50,7 +50,7 @@ class StepActionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep)
 
   /**
    * Poll SWF for actions (steps) that need to be executed.
-   * @throws Throwable A variety of exceptions are possible. Make sure your poller threads can't die without replacement.
+   * A variety of exceptions are possible. Make sure your poller threads can't die without replacement.
    * @return The action to be performed, if there is one. Null otherwise.
    */
   @Nullable
@@ -71,8 +71,8 @@ class StepActionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep)
 
   /**
    * Execute the action using the logic in the workflowDefinition.
+   * A variety of exceptions are possible. Make sure your poller threads can't die without replacement.
    * @param activityTask The task to execute
-   * @throws Throwable A variety of exceptions are possible. Make sure your poller threads can't die without replacement.
    * @return The ActivityTaskCompleted response we sent to SWF
    */
   def doWork(@NotNull activityTask: ActivityTask): RespondActivityTaskCompletedRequest = {

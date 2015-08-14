@@ -6,5 +6,5 @@ case class ScheduledStep[StepEnum <: (Enum[StepEnum] with WorkflowStep)](step: S
   def this(step: StepEnum) = this(step, None)
   def this(step: StepEnum, stepInput: String) = this(step, Some(stepInput))
 
-  stepInput.foreach(input => require(!input.contains("\0"), "input may not contain a null byte."))
+  stepInput.foreach(input => require(!input.contains("\u0000"), "input may not contain a null byte."))
 }

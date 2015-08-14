@@ -53,7 +53,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
 
   /**
    * Find out if any workflows in our domain/taskList need decisions made.
-   * @throws Throwable A variety of exceptions are possible. Make sure your poller threads can't die without replacement.
+   * A variety of exceptions are possible. Make sure your poller threads can't die without replacement.
    * @return The decision task, if there is one. Null otherwise.
    */
   @Nullable
@@ -68,8 +68,8 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
 
   /**
    * Given the context of a workflow execution, decide what needs to be done next.
+   * A variety of exceptions are possible. Make sure your worker threads can't die without replacement.
    * @param decisionTask The task from SWF. Must not be null!
-   * @throws Throwable A variety of exceptions are possible. Make sure your worker threads can't die without replacement.
    * @return The decision that we sent to SWF
    */
   def makeDecision(@NotNull decisionTask: DecisionTask): RespondDecisionTaskCompletedRequest = {
@@ -167,7 +167,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
   private[this] def waitRetry(retry: ScheduledStep[StepEnum]) = new Decision().withDecisionType(DecisionType.StartTimer).withStartTimerDecisionAttributes(
     new StartTimerDecisionAttributes()
        .withTimerId(UUID.randomUUID().toString)
-       .withControl(retry.step.name() + "\0" + retry.stepInput.getOrElse("\0"))
+       .withControl(retry.step.name() + "\u0000" + retry.stepInput.getOrElse("\u0000"))
        .withStartToFireTimeout(retry.step.inProgressTimerSeconds.toString)
   )
 

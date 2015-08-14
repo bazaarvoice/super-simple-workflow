@@ -160,10 +160,10 @@ object HistoryFactory {
         if !cancelledTimers.contains(timerId)
 
         scheduledStepStr = startedTimers(timerId).getTimerStartedEventAttributes.getControl
-        scheduledStep = if (scheduledStepStr.endsWith("\0\0")) {
-          ScheduledStep(enumFromName(scheduledStepStr.takeWhile(_ != '\0')), None)
+        scheduledStep = if (scheduledStepStr.endsWith("\u0000\u0000")) {
+          ScheduledStep(enumFromName(scheduledStepStr.takeWhile(_ != '\u0000')), None)
         } else {
-          val name :: input :: Nil = scheduledStepStr.split("\0").toList
+          val name :: input :: Nil = scheduledStepStr.split("\u0000").toList
           ScheduledStep(enumFromName(name), Some(input))
         }
         handled = events.exists(stepEvent => handledEventFilter(firedEventId, scheduledStep, stepEvent))

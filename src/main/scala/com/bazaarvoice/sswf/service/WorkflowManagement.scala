@@ -84,6 +84,16 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     new WorkflowExecution().withRunId(run.getRunId).withWorkflowId(workflowId)
   }
 
+  def cancelWorkflowExecution(workflowId: String, runId: String) = {
+    swf.terminateWorkflowExecution(new TerminateWorkflowExecutionRequest()
+       .withDomain(domain)
+       .withWorkflowId(workflowId)
+       .withRunId(runId)
+       .withChildPolicy(ChildPolicy.TERMINATE)
+       .withDetails("terminated by sswf WorkflowManagement")
+       .withReason("terminated by sswf WorkflowManagement")
+    )
+  }
 
   /**
    * List all the executions for this domain and workflow within the time window. (regardless of version)
