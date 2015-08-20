@@ -16,7 +16,7 @@ import scala.collection.mutable
 import scala.reflect._
 
 /**
- * static factory for parsing SWF histories into our {@link StepsHistory}.
+ * static factory for parsing SWF histories into our <code>StepsHistory</code>.
  */
 object HistoryFactory {
   def from[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](swfHistory: List[HistoryEvent],
@@ -25,11 +25,11 @@ object HistoryFactory {
     def enumFromName(name: String): StepEnum = Enum.valueOf(classTag[StepEnum].runtimeClass.asInstanceOf[Class[StepEnum]], name)
 
     def filterStarts(s: List[StepEvent[StepEnum]]): List[StepEvent[StepEnum]] = s match {
-      case Nil | _ :: Nil                                   =>
+      case Nil | _ :: Nil                                                     =>
         s
       case first :: second :: rest if first.canonicalId == second.canonicalId =>
         filterStarts(second :: rest)
-      case first :: rest                                    =>
+      case first :: rest                                                      =>
         first :: filterStarts(rest)
     }
 
@@ -175,7 +175,8 @@ object HistoryFactory {
 
     val compactedHistory: util.List[StepEvent[StepEnum]] = filterStarts(events)
 
-    StepsHistory[SSWFInput, StepEnum](inputParser.deserialize(input), Collections.unmodifiableList(compactedHistory), Collections.unmodifiableSet(new util.HashSet[ScheduledStep[StepEnum]](firedSteps)))
+    StepsHistory[SSWFInput, StepEnum](inputParser.deserialize(input), Collections.unmodifiableList(compactedHistory), Collections.unmodifiableSet(new util.HashSet[ScheduledStep[StepEnum]]
+    (firedSteps)))
   }
 
   def handledEventFilter[StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag, SSWFInput](firedEventId: Long,

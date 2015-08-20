@@ -49,7 +49,7 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
                                                                                                swf: AmazonSimpleWorkflow,
                                                                                                workflowExecutionTimeoutSeconds: Int = 60 * 60 * 24 * 30, // default: one month
                                                                                                workflowExecutionRetentionPeriodDays: Int = 30,
-                                                                                               stepScheduleToStartTimeoutSeconds: Int = 60,
+                                                                                               stepScheduleToStartTimeoutSeconds: Int = 60 * 5,
                                                                                                inputParser: InputParser[SSWFInput]) {
 
 
@@ -126,13 +126,11 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
   def listExecutions(from: Date, to: Date, workflowId: String): java.util.List[WorkflowExecutionInfo] = {
     val openRequest: ListOpenWorkflowExecutionsRequest = new ListOpenWorkflowExecutionsRequest()
        .withDomain(domain)
-       .withTypeFilter(new WorkflowTypeFilter().withName(workflow))
        .withExecutionFilter(new WorkflowExecutionFilter().withWorkflowId(workflowId))
        .withStartTimeFilter(new ExecutionTimeFilter().withLatestDate(to).withOldestDate(from))
 
     val closedRequest: ListClosedWorkflowExecutionsRequest = new ListClosedWorkflowExecutionsRequest()
        .withDomain(domain)
-       .withTypeFilter(new WorkflowTypeFilter().withName(workflow))
        .withExecutionFilter(new WorkflowExecutionFilter().withWorkflowId(workflowId))
        .withStartTimeFilter(new ExecutionTimeFilter().withLatestDate(to).withOldestDate(from))
 

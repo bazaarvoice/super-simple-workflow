@@ -116,7 +116,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
       require(shortDescription.length < 256)
       val fullMessage = shortDescription + ": " + message
       workflowDefinition.onFail(input, history, fullMessage)
-      val attributes: FailWorkflowExecutionDecisionAttributes = new FailWorkflowExecutionDecisionAttributes().withReason(fullMessage)
+      val attributes: FailWorkflowExecutionDecisionAttributes = new FailWorkflowExecutionDecisionAttributes().withReason(shortDescription).withDetails(fullMessage)
 
       new Decision().withDecisionType(DecisionType.FailWorkflowExecution).withFailWorkflowExecutionDecisionAttributes(attributes)
     }
