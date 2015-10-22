@@ -30,12 +30,22 @@ public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWork
         );
     }
 
-    @Override public void onFail(final ExampleWorkflowInput exampleWorkflowInput, final StepsHistory<ExampleWorkflowInput, ExampleWorkflowSteps> history, final String message) {
-        System.out.println("Workflow(" + exampleWorkflowInput.getName() + ") Failed!!! " + message);
+    @Override
+    public void onFail(final String workflow,
+                       final String run,
+                       final ExampleWorkflowInput exampleWorkflowInput,
+                       final StepsHistory<ExampleWorkflowInput, ExampleWorkflowSteps> history,
+                       final String message) {
+        System.out.println("[" + workflow + "/" + run + "] Workflow(" + exampleWorkflowInput.getName() + ") Failed!!! " + message);
     }
 
-    @Override public void onFinish(final ExampleWorkflowInput exampleWorkflowInput, final StepsHistory<ExampleWorkflowInput, ExampleWorkflowSteps> history, final String message) {
-        System.out.println("Workflow(" + exampleWorkflowInput.getName() + ") Finished!!! " + message);
+    @Override
+    public void onFinish(final String workflow,
+                         final String run,
+                         final ExampleWorkflowInput exampleWorkflowInput,
+                         final StepsHistory<ExampleWorkflowInput, ExampleWorkflowSteps> history,
+                         final String message) {
+        System.out.println("[" + workflow + "/" + run + "] Workflow(" + exampleWorkflowInput.getName() + ") Finished!!! " + message);
     }
 
     @Override public StepResult act(final ExampleWorkflowSteps step, final ExampleWorkflowInput exampleWorkflowInput, final Option<String> stepInput) {

@@ -94,7 +94,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     def schedule(activity: Option[ScheduledStep[StepEnum]]) = activity match {
       case None       =>
         val message = "No more activities to schedule."
-        workflowDefinition.onFinish(input, history, message)
+        workflowDefinition.onFinish(decisionTask.getWorkflowExecution.getWorkflowId, decisionTask.getWorkflowExecution.getRunId, input, history, message)
         var attributes: CompleteWorkflowExecutionDecisionAttributes = new CompleteWorkflowExecutionDecisionAttributes
         attributes = attributes.withResult(message)
 
@@ -115,7 +115,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     def fail(shortDescription: String, message: String) = {
       require(shortDescription.length < 256)
       val fullMessage = shortDescription + ": " + message
-      workflowDefinition.onFail(input, history, fullMessage)
+      workflowDefinition.onFail(decisionTask.getWorkflowExecution.getWorkflowId, decisionTask.getWorkflowExecution.getRunId, input, history, fullMessage)
       val attributes: FailWorkflowExecutionDecisionAttributes = new FailWorkflowExecutionDecisionAttributes().withReason(shortDescription).withDetails(fullMessage)
 
       new Decision().withDecisionType(DecisionType.FailWorkflowExecution).withFailWorkflowExecutionDecisionAttributes(attributes)

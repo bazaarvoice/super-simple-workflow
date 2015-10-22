@@ -23,7 +23,7 @@ trait WorkflowDefinition[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
    * @param history The history of what happened in the workflow execution.
    * @param message A summary of the failure. This is what we also send to SWF as the workflow "result".
    */
-  def onFail(input: SSWFInput, history: StepsHistory[SSWFInput, StepEnum], message: String): Unit
+  def onFail(workflowId: String, runId: String, input: SSWFInput, history: StepsHistory[SSWFInput, StepEnum], message: String): Unit
 
 
   /**
@@ -33,7 +33,7 @@ trait WorkflowDefinition[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
    * @param history The history of what happened in the workflow execution.
    * @param message A description of the workflow result. This is what we also send to SWF as the workflow "result".
    */
-  def onFinish(input: SSWFInput, history: StepsHistory[SSWFInput, StepEnum], message: String): Unit
+  def onFinish(workflowId: String, runId: String, input: SSWFInput, history: StepsHistory[SSWFInput, StepEnum], message: String): Unit
 
 
   /**
