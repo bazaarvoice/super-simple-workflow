@@ -19,7 +19,7 @@ import scala.reflect.ClassTag
  */
 case class StepEvent[StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](canonicalId: Long,
                                                                                 uniqueId: Long,
-                                                                                event: Either[ScheduledStep[StepEnum], WorkflowEventToken.type],
+                                                                                event: Either[ScheduledStep[StepEnum], String],
                                                                                 result: String,
                                                                                 start: DateTime,
                                                                                 end: Option[DateTime],

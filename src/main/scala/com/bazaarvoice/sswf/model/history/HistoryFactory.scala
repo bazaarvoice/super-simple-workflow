@@ -35,9 +35,8 @@ object HistoryFactory {
 
     val steps = mutable.Map[Long, HistoryEvent]()
     val scheduledSteps = mutable.Map[Long, ScheduledStep[StepEnum]]()
-    var startId: Long = -1
-    var startTime: DateTime = null
-    val startTimes = mutable.Map[String, DateTime]()
+    var workflowStartId: Long = -1
+    var workflowStartTime: DateTime = null
     var input: String = null
 
     val startedTimers = mutable.Map[String, HistoryEvent]()
@@ -45,29 +44,32 @@ object HistoryFactory {
     val cancelledTimers = mutable.Map[String, Long]()
     var completedStepCounts = Map[StepEnum, Int]().withDefaultValue(0)
 
+    var currentStep: ScheduledStep[StepEnum] = null
+    var currentStepStart: DateTime = null
+
     val eventsRaw =
       for {h <- swfHistory} yield {
         EventType.fromValue(h.getEventType) match {
           case WorkflowExecutionStarted    =>
-            startTime = new DateTime(h.getEventTimestamp)
-            startId = h.getEventId
+            workflowStartTime = new DateTime(h.getEventTimestamp)
+            workflowStartId = h.getEventId
             input = h.getWorkflowExecutionStartedEventAttributes.getInput
-            Some(StepEvent[StepEnum](startId, h.getEventId, Right(WorkflowEventToken), "STARTED", startTime, None, Duration.ZERO))
+            Some(StepEvent[StepEnum](workflowStartId, h.getEventId, Right(WorkflowEventToken), "STARTED", workflowStartTime, None, Duration.ZERO))
           case WorkflowExecutionCompleted  =>
             val dt = new DateTime(h.getEventTimestamp)
-            Some(StepEvent[StepEnum](startId, h.getEventId, Right(WorkflowEventToken), "SUCCESS", startTime, Some(dt), new Duration(startTime, dt)))
+            Some(StepEvent[StepEnum](workflowStartId, h.getEventId, Right(WorkflowEventToken), "SUCCESS", workflowStartTime, Some(dt), new Duration(workflowStartTime, dt)))
           case WorkflowExecutionFailed     =>
             val dt = new DateTime(h.getEventTimestamp)
-            Some(StepEvent[StepEnum](startId, h.getEventId, Right(WorkflowEventToken), "FAILED", startTime, Some(dt), new Duration(startTime, dt)))
+            Some(StepEvent[StepEnum](workflowStartId, h.getEventId, Right(WorkflowEventToken), "FAILED", workflowStartTime, Some(dt), new Duration(workflowStartTime, dt)))
           case WorkflowExecutionCanceled   =>
             val dt = new DateTime(h.getEventTimestamp)
-            Some(StepEvent[StepEnum](startId, h.getEventId, Right(WorkflowEventToken), "CANCELED", startTime, Some(dt), new Duration(startTime, dt)))
+            Some(StepEvent[StepEnum](workflowStartId, h.getEventId, Right(WorkflowEventToken), "CANCELED", workflowStartTime, Some(dt), new Duration(workflowStartTime, dt)))
           case WorkflowExecutionTerminated =>
             val dt = new DateTime(h.getEventTimestamp)
-            Some(StepEvent[StepEnum](startId, h.getEventId, Right(WorkflowEventToken), "TERMINATED", startTime, Some(dt), new Duration(startTime, dt)))
+            Some(StepEvent[StepEnum](workflowStartId, h.getEventId, Right(WorkflowEventToken), "TERMINATED", workflowStartTime, Some(dt), new Duration(workflowStartTime, dt)))
           case WorkflowExecutionTimedOut   =>
             val dt = new DateTime(h.getEventTimestamp)
-            Some(StepEvent[StepEnum](startId, h.getEventId, Right(WorkflowEventToken), "TIMED_OUT", startTime, Some(dt), new Duration(startTime, dt)))
+            Some(StepEvent[StepEnum](workflowStartId, h.getEventId, Right(WorkflowEventToken), "TIMED_OUT", workflowStartTime, Some(dt), new Duration(workflowStartTime, dt)))
 
           case ActivityTaskScheduled =>
             steps.put(h.getEventId, h)
@@ -80,20 +82,23 @@ object HistoryFactory {
 
             val eventStart: DateTime = new DateTime(h.getEventTimestamp)
 
-            if (!startTimes.contains(id)) {
-              startTimes.put(id, new DateTime(h.getEventTimestamp))
+            if (currentStep != scheduledStep) {
+              currentStep = scheduledStep
+              currentStepStart = new DateTime(h.getEventTimestamp)
             }
 
-            val stepStart: DateTime = new DateTime(startTimes(id))
+            Some(StepEvent[StepEnum](h.getEventId, h.getEventId, Left(scheduledStep), "SCHEDULED", eventStart, None, new Duration(currentStepStart, eventStart)))
 
-            Some(StepEvent[StepEnum](h.getEventId, h.getEventId, Left(scheduledStep), "SCHEDULED", eventStart, None, new Duration(stepStart, eventStart)))
           case ActivityTaskStarted   =>
             steps.put(h.getEventId, h)
             val eventId: lang.Long = h.getActivityTaskStartedEventAttributes.getScheduledEventId
             val id: String = steps(eventId).getActivityTaskScheduledEventAttributes.getActivityId
             val eventStart: DateTime = new DateTime(h.getEventTimestamp)
-            val stepStart: DateTime = new DateTime(startTimes(id))
-            Some(StepEvent[StepEnum](eventId, h.getEventId, Left(scheduledSteps(eventId)), "STARTED", eventStart, None, new Duration(stepStart, eventStart)))
+            val scheduledStep: ScheduledStep[StepEnum] = scheduledSteps(eventId)
+
+            assert(scheduledStep == currentStep, s"id[$scheduledStep] != currectStep[$currentStep]")
+            Some(StepEvent[StepEnum](eventId, h.getEventId, Left(scheduledStep), "STARTED", eventStart, None, new Duration(currentStepStart, eventStart)))
+
           case ActivityTaskCompleted =>
             steps.put(h.getEventId, h)
             val attributes: ActivityTaskCompletedEventAttributes = h.getActivityTaskCompletedEventAttributes
@@ -103,10 +108,11 @@ object HistoryFactory {
             val result: StepResult = StepResult.deserialize(attributes.getResult)
             val eventStart: DateTime = new DateTime(steps(attributes.getStartedEventId).getEventTimestamp)
             val endTime: DateTime = new DateTime(h.getEventTimestamp.getTime)
-            val stepStart: DateTime = new DateTime(startTimes(id))
-
             completedStepCounts = completedStepCounts + (scheduledStep.step -> (completedStepCounts(scheduledStep.step) + 1))
-            Some(StepEvent[StepEnum](eventId, h.getEventId, Left(scheduledStep), StepResult.serialize(result), eventStart, Some(endTime), new Duration(stepStart, endTime)))
+
+            assert(scheduledStep == currentStep, s"id[$scheduledStep] != currectStep[$currentStep]")
+            Some(StepEvent[StepEnum](eventId, h.getEventId, Left(scheduledStep), StepResult.serialize(result), eventStart, Some(endTime), new Duration(currentStepStart, endTime)))
+
           case ActivityTaskTimedOut  =>
             steps.put(h.getEventId, h)
             val attributes: ActivityTaskTimedOutEventAttributes = h.getActivityTaskTimedOutEventAttributes
@@ -121,17 +127,23 @@ object HistoryFactory {
                 new DateTime(steps(attributes.getStartedEventId).getEventTimestamp)
               }
             val endTime: DateTime = new DateTime(h.getEventTimestamp.getTime)
-            val stepStart: DateTime = new DateTime(startTimes(id))
-            Some(StepEvent[StepEnum](eventId, h.getEventId, Left(scheduledSteps(eventId)), StepResult.serialize(result), eventStart, Some(endTime), new Duration(stepStart, endTime)))
+            val scheduledStep: ScheduledStep[StepEnum] = scheduledSteps(eventId)
+
+            assert(scheduledStep == currentStep, s"id[$scheduledStep] != currectStep[$currentStep]")
+            Some(StepEvent[StepEnum](eventId, h.getEventId, Left(scheduledStep), StepResult.serialize(result), eventStart, Some(endTime), new Duration(currentStepStart, endTime)))
+
           case ActivityTaskFailed    =>
             steps.put(h.getEventId, h)
             val attributes: ActivityTaskFailedEventAttributes = h.getActivityTaskFailedEventAttributes
             val eventId: Long = attributes.getScheduledEventId
             val id: String = steps(eventId).getActivityTaskScheduledEventAttributes.getActivityId
             val endTime: DateTime = new DateTime(h.getEventTimestamp.getTime)
-            val stepStart: DateTime = new DateTime(startTimes(id))
             val result = Failed(s"${attributes.getReason}:${attributes.getDetails}")
-            Some(StepEvent[StepEnum](eventId, h.getEventId, Left(scheduledSteps(eventId)), StepResult.serialize(result), startTime, Some(endTime), new Duration(stepStart, endTime)))
+            val scheduledStep: ScheduledStep[StepEnum] = scheduledSteps(eventId)
+
+            assert(scheduledStep == currentStep, s"id[$scheduledStep] != currectStep[$currentStep]")
+            Some(StepEvent[StepEnum](eventId, h.getEventId, Left(scheduledStep), StepResult.serialize(result), workflowStartTime, Some(endTime), new Duration(currentStepStart, endTime)))
+
           case TimerStarted          =>
             val attributes = h.getTimerStartedEventAttributes
             val timerId = attributes.getTimerId

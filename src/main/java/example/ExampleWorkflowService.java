@@ -29,7 +29,7 @@ public class ExampleWorkflowService {
     final AmazonSimpleWorkflow swf = new AmazonSimpleWorkflowClient(); // grabs the credentials from your env
     final String domain = "java-sswf-example";
     final String workflow = "example-java-workflow";
-    final String workflowVersion = "0.3";
+    final String workflowVersion = "0.4";
     final String taskList = "my-machine";
 
     final ExampleWorkflowInput.Parser inputParser = new ExampleWorkflowInput.Parser();
