@@ -41,7 +41,9 @@ trait WorkflowDefinition[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
    * There is a recommended strategy for writing these things: see https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#writing-steps
    * @param step The action to take next
    * @param input The input to the workflow
+   * @param stepInput The input to this particular step
+   * @param heartbeatCallback A function to call to report liveness and progress. Response `true` if cancellation is requested.
    * @return The outcome of the execution.
    */
-  def act(step: StepEnum, input: SSWFInput, stepInput: Option[String]): StepResult
+  def act(step: StepEnum, input: SSWFInput, stepInput: Option[String], heartbeatCallback: HeartbeatCallback): StepResult
 }

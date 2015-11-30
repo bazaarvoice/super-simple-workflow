@@ -5,12 +5,11 @@ import java.lang.management.ManagementFactory
 import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflow
 import com.amazonaws.services.simpleworkflow.model._
 import com.bazaarvoice.sswf.model.result.StepResult
-import com.bazaarvoice.sswf.{InputParser, WorkflowDefinition, WorkflowStep}
+import com.bazaarvoice.sswf.util.unpackInput
+import com.bazaarvoice.sswf.{HeartbeatCallback, InputParser, WorkflowDefinition, WorkflowStep}
 import com.sun.istack.internal.{NotNull, Nullable}
 
 import scala.reflect._
-
-import com.bazaarvoice.sswf.util.unpackInput
 
 /**
  * The worker class responsible for executing workflow steps. The class is built so that you can plug it in to a scheduled service of your choice.
@@ -82,10 +81,30 @@ class StepActionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep)
     val task = Enum.valueOf(classTag[StepEnum].runtimeClass.asInstanceOf[Class[StepEnum]], activityTask.getActivityId)
     val (stepInput, wfInput) = unpackInput(inputParser)(activityTask.getInput)
 
-    val result = workflowDefinition.act(task, wfInput, stepInput)
+    val heartbeatCallback = new HeartbeatCallback {
+      /**
+       * Report liveness and progress. Response `true` if cancellation is requested.
+       * @param progressMessage Report any information about your progress.
+       * @return `true` if cancellation is requested.
+       */
+      override def checkIn(progressMessage: String): Boolean = {
+        val heartbeat: ActivityTaskStatus =
+          swf.recordActivityTaskHeartbeat(
+            new RecordActivityTaskHeartbeatRequest()
+               .withTaskToken(activityTask.getTaskToken)
+               .withDetails(progressMessage)
+          )
 
-    val response: RespondActivityTaskCompletedRequest = new RespondActivityTaskCompletedRequest().withResult(StepResult.serialize(result)).withTaskToken(activityTask.getTaskToken)
+        heartbeat.getCancelRequested
+      }
+    }
 
+    val result = workflowDefinition.act(task, wfInput, stepInput, heartbeatCallback)
+
+    val response: RespondActivityTaskCompletedRequest =
+      new RespondActivityTaskCompletedRequest()
+         .withResult(StepResult.serialize(result))
+         .withTaskToken(activityTask.getTaskToken)
     swf.respondActivityTaskCompleted(response)
     response
   }

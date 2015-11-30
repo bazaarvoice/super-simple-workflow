@@ -139,6 +139,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
         result match {
           case None                => return respond(schedule(Some(step)))
           case Some(Failed(m))     => return respond(fail(s"Failed stage $step", Failed(m).toString))
+          case Some(Cancelled(m))  => return respond(fail(s"Cancelled stage $step", Cancelled(m).toString))
           case Some(InProgress(m)) => return respond(waitRetry(step))
           case Some(TimedOut(m))   => return respond(waitRetry(step))
           case Some(Success(m))    => ()

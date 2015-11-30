@@ -1,5 +1,6 @@
 package example;
 
+import com.bazaarvoice.sswf.HeartbeatCallback;
 import com.bazaarvoice.sswf.WorkflowDefinition;
 import com.bazaarvoice.sswf.model.ScheduledStep;
 import com.bazaarvoice.sswf.model.history.StepsHistory;
@@ -48,9 +49,13 @@ public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWork
         System.out.println("[" + workflow + "/" + run + "] Workflow(" + exampleWorkflowInput.getName() + ") Finished!!! " + message);
     }
 
-    @Override public StepResult act(final ExampleWorkflowSteps step, final ExampleWorkflowInput exampleWorkflowInput, final Option<String> stepInput) {
+    @Override public StepResult act(final ExampleWorkflowSteps step, final ExampleWorkflowInput exampleWorkflowInput, final Option<String> stepInput, final HeartbeatCallback heartbeatCallback) {
         switch (step) {
             case EXTRACT_STEP:
+                // Note we're not required to cancel if this is true, it's just a request.
+                final boolean cancelRequested = heartbeatCallback.checkIn("just an example heartbeat checkin");
+                System.out.println("Cancellation requested: " + cancelRequested);
+
                 if (!Objects.equals(state.get(exampleWorkflowInput.getName()), "extract finished")) {
                     state.put(exampleWorkflowInput.getName(), "extract finished");
                     return new InProgress("started extract");

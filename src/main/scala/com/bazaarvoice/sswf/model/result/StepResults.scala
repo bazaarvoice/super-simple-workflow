@@ -51,6 +51,20 @@ object Failed {
   def apply(msg: Any) = new Failed(msg.toString)
 }
 
+case class Cancelled(message: Option[String]) extends StepResult(message) {
+  def this() = this(None)
+  def this(msg: String) = this(Some(msg))
+
+  lazy val isSuccessful = false
+  override def isInProgress: Boolean = false
+}
+
+object Cancelled {
+  def apply() = new Cancelled()
+  def apply(msg: String) = new Cancelled(msg)
+  def apply(msg: Any) = new Cancelled(msg.toString)
+}
+
 case class TimedOut(message: Option[String]) extends StepResult(message) {
   def this() = this(None)
   def this(msg: String) = this(Some(msg))
@@ -74,6 +88,8 @@ object StepResult {
       case "IN_PROGRESS" :: msg => InProgress(Some(msg.mkString(":")))
       case "FAILED" :: Nil => Failed(None)
       case "FAILED" :: msg => Failed(Some(msg.mkString(":")))
+      case "CANCELLED" :: Nil => Cancelled(None)
+      case "CANCELLED" :: msg => Cancelled(Some(msg.mkString(":")))
       case "TIMED_OUT" :: Nil => TimedOut(None)
       case "TIMED_OUT" :: msg => TimedOut(Some(msg.mkString(":")))
       case _ => throw new IllegalArgumentException(string)
@@ -86,6 +102,8 @@ object StepResult {
     case InProgress(None) => "IN_PROGRESS"
     case Failed(Some(msg)) => "FAILED:" + msg
     case Failed(None) => "FAILED"
+    case Cancelled(Some(msg)) => "CANCELLED:" + msg
+    case Cancelled(None) => "CANCELLED"
     case TimedOut(Some(msg)) => "TIMED_OUT:"+msg
     case TimedOut(None) => "TIMED_OUT"
   }
