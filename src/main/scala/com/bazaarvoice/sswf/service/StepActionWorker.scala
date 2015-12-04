@@ -4,6 +4,7 @@ import java.lang.management.ManagementFactory
 
 import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflow
 import com.amazonaws.services.simpleworkflow.model._
+import com.bazaarvoice.sswf.model.StepInput
 import com.bazaarvoice.sswf.model.result.StepResult
 import com.bazaarvoice.sswf.util.unpackInput
 import com.bazaarvoice.sswf.{HeartbeatCallback, InputParser, WorkflowDefinition, WorkflowStep}

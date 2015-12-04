@@ -9,6 +9,7 @@ import com.bazaarvoice.sswf.model.ScheduledStep
 import com.bazaarvoice.sswf.model.history.{HistoryFactory, StepEvent, StepsHistory}
 import com.bazaarvoice.sswf.model.result._
 import com.bazaarvoice.sswf.util.packInput
+import com.bazaarvoice.sswf.util.packTimer
 import com.bazaarvoice.sswf.{InputParser, WorkflowDefinition, WorkflowStep}
 import com.sun.istack.internal.{NotNull, Nullable}
 
@@ -92,6 +93,18 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     def respond(d: Decision): RespondDecisionTaskCompletedRequest =
       new RespondDecisionTaskCompletedRequest().withDecisions(List(d)).withTaskToken(decisionTask.getTaskToken)
 
+    def resume(step: ScheduledStep[StepEnum]) = {
+      val scheduleActivityTaskDecisionAttributes: ScheduleActivityTaskDecisionAttributes = new ScheduleActivityTaskDecisionAttributes()
+         .withActivityId(step.step.name)
+         .withActivityType(new ActivityType().withName(step.step.name).withVersion(util.stepToVersion(step.step)))
+         .withTaskList(new TaskList().withName(taskList))
+         .withInput(packInput(inputParser)(step.stepInput, input))
+
+      new Decision()
+         .withDecisionType(DecisionType.ScheduleActivityTask)
+         .withScheduleActivityTaskDecisionAttributes(scheduleActivityTaskDecisionAttributes)
+    }
+
     def schedule(activity: Option[ScheduledStep[StepEnum]]) = activity match {
       case None       =>
         val message = "No more activities to schedule."
@@ -130,7 +143,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
       val result = StepResult.deserialize(e.result)
       if (finalStates.isEmpty) {
         finalStates.append(e)
-      } else if (finalStates.last.event == e.event) {
+      } else if (finalStates.last.event.left.get.withoutResume == e.event.left.get.withoutResume) {
         finalStates.remove(finalStates.length - 1)
         finalStates.append(e)
       } else {
@@ -144,7 +157,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
         return respond(schedule(Some(step)))
       } else {
         val thisFS = fsIt.next()
-        assert(thisFS.event.left.get == step, s"Did the workflow change? [${thisFS.event.left.get}] != [$step]")
+        assert(thisFS.event.left.get.withoutResume == step, s"Did the workflow change? [${thisFS.event.left.get}] != [$step]")
         val result = StepResult.deserialize(thisFS.result)
         result match {
           case Failed(m)                         => return respond(fail(s"Failed stage $step", Failed(m).toString))
@@ -152,7 +165,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
           case InProgress(m)                     => return respond(waitRetry(step))
           case TimedOut(timeoutType, resumeInfo) =>
             println("got: " + TimedOut(timeoutType, resumeInfo))
-            return respond(schedule(Some(step)))
+            return respond(resume(step.copy(stepInput = step.stepInput.copy(resumeProgress = resumeInfo))))
           case Success(m)                        => ()
         }
       }
@@ -180,7 +193,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
   private[this] def waitRetry(retry: ScheduledStep[StepEnum]) = new Decision().withDecisionType(DecisionType.StartTimer).withStartTimerDecisionAttributes(
     new StartTimerDecisionAttributes()
        .withTimerId(UUID.randomUUID().toString)
-       .withControl(retry.step.name() + "\u0000" + retry.stepInput.getOrElse("\u0000"))
+       .withControl(packTimer(retry.step.name, retry.stepInput))
        .withStartToFireTimeout(retry.step.inProgressTimerSeconds.toString)
   )
 

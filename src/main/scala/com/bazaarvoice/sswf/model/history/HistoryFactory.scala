@@ -5,8 +5,8 @@ import java.{lang, util}
 
 import com.amazonaws.services.simpleworkflow.model.EventType._
 import com.amazonaws.services.simpleworkflow.model._
-import com.bazaarvoice.sswf.model.ScheduledStep
 import com.bazaarvoice.sswf.model.result.{Failed, StepResult, TimedOut}
+import com.bazaarvoice.sswf.model.{ScheduledStep, StepInput}
 import com.bazaarvoice.sswf.util._
 import com.bazaarvoice.sswf.{InputParser, WorkflowStep}
 import org.joda.time.{DateTime, Duration}
@@ -172,12 +172,9 @@ object HistoryFactory {
         if !cancelledTimers.contains(timerId)
 
         scheduledStepStr = startedTimers(timerId).getTimerStartedEventAttributes.getControl
-        scheduledStep = if (scheduledStepStr.endsWith("\u0000\u0000")) {
-          ScheduledStep(enumFromName(scheduledStepStr.takeWhile(_ != '\u0000')), None)
-        } else {
-          val name :: input :: Nil = scheduledStepStr.split("\u0000").toList
-          ScheduledStep(enumFromName(name), Some(input))
-        }
+        (stepName, stepInput) = unpackTimer(scheduledStepStr)
+        scheduledStep = ScheduledStep(enumFromName(stepName), stepInput)
+
         handled = events.exists(stepEvent => handledEventFilter(firedEventId, scheduledStep, stepEvent))
         if !handled
       } yield {

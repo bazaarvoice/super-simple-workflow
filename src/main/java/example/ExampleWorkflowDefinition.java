@@ -3,12 +3,11 @@ package example;
 import com.bazaarvoice.sswf.HeartbeatCallback;
 import com.bazaarvoice.sswf.WorkflowDefinition;
 import com.bazaarvoice.sswf.model.ScheduledStep;
+import com.bazaarvoice.sswf.model.StepInput;
 import com.bazaarvoice.sswf.model.history.StepsHistory;
 import com.bazaarvoice.sswf.model.result.InProgress;
 import com.bazaarvoice.sswf.model.result.StepResult;
 import com.bazaarvoice.sswf.model.result.Success;
-import scala.Option;
-import scala.Some;
 
 import java.util.Arrays;
 import java.util.List;
@@ -25,8 +24,8 @@ public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWork
     @Override public List<ScheduledStep<ExampleWorkflowSteps>> workflow(final ExampleWorkflowInput exampleWorkflowInput) {
         return Arrays.asList(
             new ScheduledStep<>(ExampleWorkflowSteps.EXTRACT_STEP),
-            new ScheduledStep<>(ExampleWorkflowSteps.TRANSFORM_STEP, new Some<>("format1->format2")),
-            new ScheduledStep<>(ExampleWorkflowSteps.TRANSFORM_STEP, new Some<>("format2->format3")),
+            new ScheduledStep<>(ExampleWorkflowSteps.TRANSFORM_STEP, "format1->format2"),
+            new ScheduledStep<>(ExampleWorkflowSteps.TRANSFORM_STEP, "format2->format3"),
             new ScheduledStep<>(ExampleWorkflowSteps.TIMEOUT_ONCE_STEP),
             new ScheduledStep<>(ExampleWorkflowSteps.LOAD_STEP)
         );
@@ -50,7 +49,7 @@ public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWork
         System.out.println("[" + workflow + "/" + run + "] Workflow(" + exampleWorkflowInput.getName() + ") Finished!!! " + message);
     }
 
-    @Override public StepResult act(final ExampleWorkflowSteps step, final ExampleWorkflowInput exampleWorkflowInput, final Option<String> stepInput, final HeartbeatCallback heartbeatCallback) {
+    @Override public StepResult act(final ExampleWorkflowSteps step, final ExampleWorkflowInput exampleWorkflowInput, final StepInput stepInput, final HeartbeatCallback heartbeatCallback) {
         switch (step) {
             case EXTRACT_STEP:
                 // Note we're not required to cancel if this is true, it's just a request.
@@ -63,9 +62,9 @@ public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWork
                 }
                 return new Success("Extract is done.");
             case TRANSFORM_STEP:
-                if (!Objects.equals(state.get(exampleWorkflowInput.getName()), "transform finished (" + stepInput + ")")) {
-                    state.put(exampleWorkflowInput.getName(), "transform finished (" + stepInput + ")");
-                    return new InProgress("transform started (" + stepInput + ")");
+                if (!Objects.equals(state.get(exampleWorkflowInput.getName()), "transform finished (" + stepInput.stepInputString() + ")")) {
+                    state.put(exampleWorkflowInput.getName(), "transform finished (" + stepInput.stepInputString() + ")");
+                    return new InProgress("transform started (" + stepInput.stepInputString() + ")");
                 }
                 return new Success("Nothing to do!");
             case LOAD_STEP:
@@ -75,11 +74,13 @@ public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWork
                 }
                 return new Success("load finished");
             case TIMEOUT_ONCE_STEP:
+                System.out.println("resume: " + stepInput.resumeProgress());
                 if (!Objects.equals(state.get(exampleWorkflowInput.getName()), "timeout_once finished")) {
                     state.put(exampleWorkflowInput.getName(), "timeout_once finished");
+                    heartbeatCallback.checkIn("[95] of [100]");
                     throw new RuntimeException("Forcing a timeout");
                 }
-                return new Success("timeout_once finished");
+                return new Success("timeout_once finished. Resumed from " + stepInput.resumeProgress());
             default:
                 throw new IllegalStateException("Unexpected step enum" + step);
         }

@@ -1,6 +1,6 @@
 package com.bazaarvoice.sswf
 
-import com.bazaarvoice.sswf.model.ScheduledStep
+import com.bazaarvoice.sswf.model.{StepInput, ScheduledStep}
 import com.bazaarvoice.sswf.model.history.StepsHistory
 import com.bazaarvoice.sswf.model.result.StepResult
 
@@ -45,5 +45,5 @@ trait WorkflowDefinition[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
    * @param heartbeatCallback A function to call to report liveness and progress. Response `true` if cancellation is requested.
    * @return The outcome of the execution.
    */
-  def act(step: StepEnum, input: SSWFInput, stepInput: Option[String], heartbeatCallback: HeartbeatCallback): StepResult
+  def act(step: StepEnum, input: SSWFInput, stepInput: StepInput, heartbeatCallback: HeartbeatCallback): StepResult
 }
