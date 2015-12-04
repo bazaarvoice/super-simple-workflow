@@ -134,6 +134,7 @@ public class ExampleWorkflowService {
     }
 
     public static void main(String[] args) throws InterruptedException {
+        final Date runStart = new Date();
         // start all the workers
         final ExampleWorkflowService service = new ExampleWorkflowService();
         service.start();
@@ -145,7 +146,7 @@ public class ExampleWorkflowService {
 
 
         while (true) {
-            Thread.sleep(10000);
+            Thread.sleep(5000);
             final List<WorkflowExecutionInfo> executions = service.workflowManagement.listExecutions(new Date(System.currentTimeMillis() - 1000 * 60 * 60 * 24), new Date());
             int openExecutions = 0;
             for (WorkflowExecutionInfo executionInfo : executions) {
@@ -170,6 +171,21 @@ public class ExampleWorkflowService {
             } else {
                 System.out.println(openExecutions + " workflows are still open.");
             }
+        }
+
+        final List<WorkflowExecutionInfo> executions = service.workflowManagement.listExecutions(runStart, new Date());
+        System.out.println("\nExecutions this run:");
+        for (WorkflowExecutionInfo executionInfo : executions) {
+            final StepsHistory<ExampleWorkflowInput, ExampleWorkflowSteps> execution = service.workflowManagement.describeExecution(executionInfo.getExecution().getWorkflowId(), executionInfo.getExecution().getRunId());
+            System.out.println("");
+            System.out.println("WF history: " + executionInfo.getExecution());
+            System.out.println("  input: " + execution.input());
+            System.out.println("  firedTimers: " + execution.firedTimers());
+            System.out.println("  events:");
+            for (StepEvent<ExampleWorkflowSteps> event : execution.events()) {
+                System.out.println("    " + event);
+            }
+            System.out.println();
         }
 
         // stop everything and exit

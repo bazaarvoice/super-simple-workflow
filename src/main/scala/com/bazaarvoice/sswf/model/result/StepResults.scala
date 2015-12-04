@@ -7,6 +7,7 @@ package com.bazaarvoice.sswf.model.result
 sealed abstract class StepResult(message: Option[String]) {
   def isSuccessful: Boolean
   def isInProgress: Boolean
+  def isFinal: Boolean
 }
 
 case class Success(message: Option[String]) extends StepResult(message) {
@@ -15,6 +16,7 @@ case class Success(message: Option[String]) extends StepResult(message) {
 
   lazy val isSuccessful = true
   override def isInProgress: Boolean = false
+  override def isFinal: Boolean = true
 }
 
 object Success {
@@ -29,6 +31,7 @@ case class InProgress(message: Option[String]) extends StepResult(message) {
 
   lazy val isSuccessful = false
   override def isInProgress: Boolean = true
+  override def isFinal: Boolean = false
 }
 
 object InProgress {
@@ -43,6 +46,7 @@ case class Failed(message: Option[String]) extends StepResult(message) {
 
   lazy val isSuccessful = false
   override def isInProgress: Boolean = false
+  override def isFinal: Boolean = true
 }
 
 object Failed {
@@ -57,6 +61,7 @@ case class Cancelled(message: Option[String]) extends StepResult(message) {
 
   lazy val isSuccessful = false
   override def isInProgress: Boolean = false
+  override def isFinal: Boolean = true
 }
 
 object Cancelled {
@@ -71,6 +76,7 @@ case class TimedOut(message: Option[String]) extends StepResult(message) {
 
   lazy val isSuccessful = false
   override def isInProgress: Boolean = false
+  override def isFinal: Boolean = false
 }
 
 object TimedOut {

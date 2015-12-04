@@ -13,6 +13,7 @@ import com.bazaarvoice.sswf.{InputParser, WorkflowDefinition, WorkflowStep}
 import com.sun.istack.internal.{NotNull, Nullable}
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 
@@ -125,29 +126,38 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
       return respond(schedule(Some(history.firedTimers.head)))
     }
 
-    val failedEvents: List[StepEvent[StepEnum]] = history.events.filter(e => e.event.isLeft && e.result.startsWith("FAILED")).toList
+    val finalStates = mutable.Buffer[StepEvent[StepEnum]]()
+    for (e <- history.events if e.event.isLeft) {
+      val result = StepResult.deserialize(e.result)
+      if (finalStates.isEmpty) {
+        finalStates.append(e)
+      } else if (finalStates.last.event == e.event) {
+        finalStates.remove(finalStates.length - 1)
+        finalStates.append(e)
+      } else {
+        finalStates.append(e)
+      }
+    }
 
-    if (failedEvents.nonEmpty) {
-      respond(fail(s"failed ${failedEvents.size} activities", s"$failedEvents"))
-    } else {
-      for (step <- workflowDefinition.workflow(input)) {
-        println(s"StepDecisionWorker: considering $step")
-        val lastOption: Option[StepEvent[StepEnum]] = history.events.filter(_.event == Left(step)).lastOption
-        val result: Option[StepResult] = lastOption.map(l => {
-          StepResult.deserialize(l.result)
-        })
+    val fsIt = finalStates.iterator
+    for (step <- workflowDefinition.workflow(input)) {
+      if (!fsIt.hasNext) {
+        return respond(schedule(Some(step)))
+      } else {
+        val thisFS = fsIt.next()
+        assert(thisFS.event.left.get == step, s"Did the workflow change? [${thisFS.event.left.get}] != [$step]")
+        val result = StepResult.deserialize(thisFS.result)
         result match {
-          case None                => return respond(schedule(Some(step)))
-          case Some(Failed(m))     => return respond(fail(s"Failed stage $step", Failed(m).toString))
-          case Some(Cancelled(m))  => return respond(fail(s"Cancelled stage $step", Cancelled(m).toString))
-          case Some(InProgress(m)) => return respond(waitRetry(step))
-          case Some(TimedOut(m))   => return respond(waitRetry(step))
-          case Some(Success(m))    => ()
+          case Failed(m)     => return respond(fail(s"Failed stage $step", Failed(m).toString))
+          case Cancelled(m)  => return respond(fail(s"Cancelled stage $step", Cancelled(m).toString))
+          case InProgress(m) => return respond(waitRetry(step))
+          case TimedOut(m)   => return respond(waitRetry(step))
+          case Success(m)    => ()
         }
       }
-
-      respond(schedule(None))
     }
+
+    respond(schedule(None))
   }
 
   private[this] def getFullHistory(decisionTask: DecisionTask): (DecisionTask, List[HistoryEvent]) = {
