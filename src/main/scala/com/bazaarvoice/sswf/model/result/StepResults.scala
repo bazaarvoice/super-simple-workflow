@@ -70,48 +70,37 @@ object Cancelled {
   def apply(msg: Any) = new Cancelled(msg.toString)
 }
 
-case class TimedOut(message: Option[String]) extends StepResult(message) {
-  def this() = this(None)
-  def this(msg: String) = this(Some(msg))
-
+case class TimedOut(timeoutType: String, resumeInfo: Option[String]) extends StepResult(Some(s"$timeoutType:$resumeInfo")) {
   lazy val isSuccessful = false
   override def isInProgress: Boolean = false
   override def isFinal: Boolean = false
 }
 
-object TimedOut {
-  def apply() = new TimedOut()
-  def apply(msg: String) = new TimedOut(msg)
-  def apply(msg: Any) = new TimedOut(msg.toString)
-}
-
 object StepResult {
   def deserialize(string: String): StepResult =
     string.split(":").toList match {
-      case "SUCCESS" :: Nil => Success(None)
-      case "SUCCESS" :: msg => Success(Some(msg.mkString(":")))
-      case "IN_PROGRESS" :: Nil => InProgress(None)
-      case "IN_PROGRESS" :: msg => InProgress(Some(msg.mkString(":")))
-      case "FAILED" :: Nil => Failed(None)
-      case "FAILED" :: msg => Failed(Some(msg.mkString(":")))
-      case "CANCELLED" :: Nil => Cancelled(None)
-      case "CANCELLED" :: msg => Cancelled(Some(msg.mkString(":")))
-      case "TIMED_OUT" :: Nil => TimedOut(None)
-      case "TIMED_OUT" :: msg => TimedOut(Some(msg.mkString(":")))
-      case _ => throw new IllegalArgumentException(string)
+      case "SUCCESS" :: Nil                         => Success(None)
+      case "SUCCESS" :: msg                         => Success(Some(msg.mkString(":")))
+      case "IN_PROGRESS" :: Nil                     => InProgress(None)
+      case "IN_PROGRESS" :: msg                     => InProgress(Some(msg.mkString(":")))
+      case "FAILED" :: Nil                          => Failed(None)
+      case "FAILED" :: msg                          => Failed(Some(msg.mkString(":")))
+      case "CANCELLED" :: Nil                       => Cancelled(None)
+      case "CANCELLED" :: msg                       => Cancelled(Some(msg.mkString(":")))
+      case "TIMED_OUT" :: timeoutType :: resumeInfo => TimedOut(timeoutType, if (resumeInfo.forall(_.isEmpty)) None else Some(resumeInfo.mkString(":")))
+      case _                                        => throw new IllegalArgumentException(string)
     }
 
   def serialize(message: StepResult) = message match {
-    case Success(Some(msg)) => "SUCCESS:" + msg
-    case Success(None) => "SUCCESS"
-    case InProgress(Some(msg)) => "IN_PROGRESS:" + msg
-    case InProgress(None) => "IN_PROGRESS"
-    case Failed(Some(msg)) => "FAILED:" + msg
-    case Failed(None) => "FAILED"
-    case Cancelled(Some(msg)) => "CANCELLED:" + msg
-    case Cancelled(None) => "CANCELLED"
-    case TimedOut(Some(msg)) => "TIMED_OUT:"+msg
-    case TimedOut(None) => "TIMED_OUT"
+    case Success(Some(msg))                => "SUCCESS:" + msg
+    case Success(None)                     => "SUCCESS"
+    case InProgress(Some(msg))             => "IN_PROGRESS:" + msg
+    case InProgress(None)                  => "IN_PROGRESS"
+    case Failed(Some(msg))                 => "FAILED:" + msg
+    case Failed(None)                      => "FAILED"
+    case Cancelled(Some(msg))              => "CANCELLED:" + msg
+    case Cancelled(None)                   => "CANCELLED"
+    case TimedOut(timeoutType, resumeInfo) => "TIMED_OUT:" + timeoutType + ":" + resumeInfo.getOrElse("")
   }
 }
 

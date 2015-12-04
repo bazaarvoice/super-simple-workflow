@@ -27,6 +27,7 @@ public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWork
             new ScheduledStep<>(ExampleWorkflowSteps.EXTRACT_STEP),
             new ScheduledStep<>(ExampleWorkflowSteps.TRANSFORM_STEP, new Some<>("format1->format2")),
             new ScheduledStep<>(ExampleWorkflowSteps.TRANSFORM_STEP, new Some<>("format2->format3")),
+            new ScheduledStep<>(ExampleWorkflowSteps.TIMEOUT_ONCE_STEP),
             new ScheduledStep<>(ExampleWorkflowSteps.LOAD_STEP)
         );
     }
@@ -73,6 +74,12 @@ public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWork
                     return new InProgress("load started");
                 }
                 return new Success("load finished");
+            case TIMEOUT_ONCE_STEP:
+                if (!Objects.equals(state.get(exampleWorkflowInput.getName()), "timeout_once finished")) {
+                    state.put(exampleWorkflowInput.getName(), "timeout_once finished");
+                    throw new RuntimeException("Forcing a timeout");
+                }
+                return new Success("timeout_once finished");
             default:
                 throw new IllegalStateException("Unexpected step enum" + step);
         }

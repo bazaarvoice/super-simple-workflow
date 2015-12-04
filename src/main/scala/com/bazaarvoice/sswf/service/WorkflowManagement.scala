@@ -239,7 +239,7 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
            .withVersion(version)
            .withDomain(domain)
            .withDefaultTaskList(new TaskList().withName(taskList))
-           .withDefaultTaskHeartbeatTimeout(activity.startToFinishTimeoutSeconds.toString)
+           .withDefaultTaskHeartbeatTimeout(activity.startToHeartbeatTimeoutSeconds.toString)
            .withDefaultTaskScheduleToStartTimeout(stepScheduleToStartTimeoutSeconds.toString)
            .withDefaultTaskScheduleToCloseTimeout((stepScheduleToStartTimeoutSeconds + activity.startToFinishTimeoutSeconds).toString)
            .withDefaultTaskStartToCloseTimeout(activity.startToFinishTimeoutSeconds.toString)

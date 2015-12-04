@@ -5,7 +5,8 @@ import com.bazaarvoice.sswf.WorkflowStep;
 public enum ExampleWorkflowSteps implements WorkflowStep {
     EXTRACT_STEP(10, 120, 120),
     TRANSFORM_STEP(10, 120, 120),
-    LOAD_STEP(10, 120, 120)
+    LOAD_STEP(10, 120, 120),
+    TIMEOUT_ONCE_STEP(10, 120, 10)
     ;
 
     private int inProgressTimerSeconds;

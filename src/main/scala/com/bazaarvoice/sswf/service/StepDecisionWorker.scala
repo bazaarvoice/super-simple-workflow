@@ -104,7 +104,6 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
         val scheduleActivityTaskDecisionAttributes: ScheduleActivityTaskDecisionAttributes = new ScheduleActivityTaskDecisionAttributes()
            .withActivityId(step.step.name)
            .withActivityType(new ActivityType().withName(step.step.name).withVersion(util.stepToVersion(step.step)))
-           .withHeartbeatTimeout("NONE")
            .withTaskList(new TaskList().withName(taskList))
            .withInput(packInput(inputParser)(step.stepInput, input))
 
@@ -148,11 +147,13 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
         assert(thisFS.event.left.get == step, s"Did the workflow change? [${thisFS.event.left.get}] != [$step]")
         val result = StepResult.deserialize(thisFS.result)
         result match {
-          case Failed(m)     => return respond(fail(s"Failed stage $step", Failed(m).toString))
-          case Cancelled(m)  => return respond(fail(s"Cancelled stage $step", Cancelled(m).toString))
-          case InProgress(m) => return respond(waitRetry(step))
-          case TimedOut(m)   => return respond(waitRetry(step))
-          case Success(m)    => ()
+          case Failed(m)                         => return respond(fail(s"Failed stage $step", Failed(m).toString))
+          case Cancelled(m)                      => return respond(fail(s"Cancelled stage $step", Cancelled(m).toString))
+          case InProgress(m)                     => return respond(waitRetry(step))
+          case TimedOut(timeoutType, resumeInfo) =>
+            println("got: " + TimedOut(timeoutType, resumeInfo))
+            return respond(schedule(Some(step)))
+          case Success(m)                        => ()
         }
       }
     }
