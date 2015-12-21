@@ -8,9 +8,8 @@ import com.amazonaws.services.simpleworkflow.model._
 import com.bazaarvoice.sswf.model.ScheduledStep
 import com.bazaarvoice.sswf.model.history.{HistoryFactory, StepEvent, StepsHistory}
 import com.bazaarvoice.sswf.model.result._
-import com.bazaarvoice.sswf.util.packInput
-import com.bazaarvoice.sswf.util.packTimer
-import com.bazaarvoice.sswf.{InputParser, WorkflowDefinition, WorkflowStep}
+import com.bazaarvoice.sswf.util.{packInput, packTimer}
+import com.bazaarvoice.sswf.{InputParser, Logger, WorkflowDefinition, WorkflowStep}
 import com.sun.istack.internal.{NotNull, Nullable}
 
 import scala.collection.JavaConversions._
@@ -50,7 +49,8 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
                                                                                                taskList: String,
                                                                                                swf: AmazonSimpleWorkflow,
                                                                                                inputParser: InputParser[SSWFInput],
-                                                                                               workflowDefinition: WorkflowDefinition[SSWFInput, StepEnum]) {
+                                                                                               workflowDefinition: WorkflowDefinition[SSWFInput, StepEnum],
+                                                                                               log: Logger) {
   private[this] val identity = ManagementFactory.getRuntimeMXBean.getName
 
   /**
@@ -77,8 +77,11 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
   def makeDecision(@NotNull decisionTask: DecisionTask): RespondDecisionTaskCompletedRequest = {
     require(decisionTask != null, "decisionTask must not be null")
 
+    log.debug(s"starting makeDecision for [${decisionTask.getStartedEventId}]")
     val (newDecisionTask, events) = getFullHistory(decisionTask)
+    log.debug(s"get history for [${decisionTask.getStartedEventId}]")
     val completedRequest: RespondDecisionTaskCompletedRequest = innerMakeDecision(newDecisionTask, events)
+    log.debug(s"made decision for [${decisionTask.getStartedEventId}]")
 
     swf.respondDecisionTaskCompleted(completedRequest)
 
@@ -86,7 +89,9 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
   }
 
   private[this] def innerMakeDecision(decisionTask: DecisionTask, events: List[HistoryEvent]): RespondDecisionTaskCompletedRequest = {
+    log.debug(s"starting innerMakeDecision for [${decisionTask.getStartedEventId}]")
     val history: StepsHistory[SSWFInput, StepEnum] = HistoryFactory.from(events, inputParser)
+    log.debug(s"got history for [${decisionTask.getStartedEventId}]")
 
     val input = history.input
 
@@ -134,10 +139,12 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
       new Decision().withDecisionType(DecisionType.FailWorkflowExecution).withFailWorkflowExecutionDecisionAttributes(attributes)
     }
 
+    log.debug(s"checking for fired timers for [${decisionTask.getStartedEventId}]")
     if (history.firedTimers.nonEmpty) {
       return respond(schedule(Some(history.firedTimers.head)))
     }
 
+    log.debug(s"finding final states for [${decisionTask.getStartedEventId}]")
     val finalStates = mutable.Buffer[StepEvent[StepEnum]]()
     for (e <- history.events if e.event.isLeft) {
       val result = StepResult.deserialize(e.result)
@@ -151,6 +158,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
       }
     }
 
+    log.debug(s"determining next step for [${decisionTask.getStartedEventId}]")
     val fsIt = finalStates.iterator
     for (step <- workflowDefinition.workflow(input)) {
       if (!fsIt.hasNext) {

@@ -99,6 +99,7 @@ public class Builders {
         private AmazonSimpleWorkflow swf;
         private InputParser<SSWFInput> inputParser;
         private WorkflowDefinition<SSWFInput, StepEnum> workflowDefinition;
+        private Logger logger;
 
         public StepDecisionWorkerBuilder(@SuppressWarnings("UnusedParameters") Class<SSWFInput> inputClass, Class<StepEnum> stepEnumClass) {
             // inputClass is an argument only to set the generic type (and to future-proof in case we ever need a classTag for it).
@@ -112,7 +113,8 @@ public class Builders {
             if (swf == null) throw new IllegalArgumentException("swf was null");
             if (inputParser == null) throw new IllegalArgumentException("inputParser was null");
             if (workflowDefinition == null) throw new IllegalArgumentException("workflowDefinition was null");
-            return new StepDecisionWorker<>(domain, taskList, swf, inputParser, workflowDefinition, ClassTag$.MODULE$.apply(stepEnumClass));
+            if (logger == null) throw new IllegalArgumentException("logger was null");
+            return new StepDecisionWorker<>(domain, taskList, swf, inputParser, workflowDefinition, logger, ClassTag$.MODULE$.apply(stepEnumClass));
         }
 
 
@@ -162,6 +164,15 @@ public class Builders {
          */
         public StepDecisionWorkerBuilder<SSWFInput, StepEnum> setWorkflowDefinition(WorkflowDefinition<SSWFInput, StepEnum> workflowDefinition) {
             this.workflowDefinition = workflowDefinition;
+            return this;
+        }
+
+        /**
+         * @param logger
+         * @return The builder
+         */
+        public StepDecisionWorkerBuilder<SSWFInput, StepEnum> setLogger(Logger logger) {
+            this.logger = logger;
             return this;
         }
     }

@@ -41,7 +41,8 @@ public class ExampleWorkflowService {
             .setTaskList(taskList)
             .setSwf(swf)
             .setInputParser(inputParser)
-            .setWorkflowDefinition(workflowDefinition).build();
+            .setWorkflowDefinition(workflowDefinition)
+            .build();
     final StepActionWorker<ExampleWorkflowInput, ExampleWorkflowSteps> actionWorker =
         new Builders.StepActionWorkerBuilder<>(ExampleWorkflowInput.class, ExampleWorkflowSteps.class)
             .setDomain(domain)
