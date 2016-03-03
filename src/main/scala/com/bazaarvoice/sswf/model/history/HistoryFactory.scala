@@ -5,8 +5,8 @@ import java.{lang, util}
 
 import com.amazonaws.services.simpleworkflow.model.EventType._
 import com.amazonaws.services.simpleworkflow.model._
-import com.bazaarvoice.sswf.model.result.{Failed, StepResult, TimedOut}
-import com.bazaarvoice.sswf.model.{ScheduledStep, StepInput}
+import com.bazaarvoice.sswf.model.result._
+import com.bazaarvoice.sswf.model.{SleepStep, DefinedStep, ScheduledStep, StepInput}
 import com.bazaarvoice.sswf.util._
 import com.bazaarvoice.sswf.{InputParser, WorkflowStep}
 import org.joda.time.{DateTime, Duration}
@@ -42,14 +42,17 @@ object HistoryFactory {
     val startedTimers = mutable.Map[String, HistoryEvent]()
     val firedTimers = mutable.Map[String, Long]()
     val cancelledTimers = mutable.Map[String, Long]()
-    var completedStepCounts = Map[StepEnum, Int]().withDefaultValue(0)
 
+    // track the cumulative step time
     var currentStep: ScheduledStep[StepEnum] = null
     var currentStepStart: DateTime = null
+
+    var completedStepCounts = Map[StepEnum, Int]().withDefaultValue(0)
 
     val eventsRaw =
       for {h <- swfHistory} yield {
         EventType.fromValue(h.getEventType) match {
+          // Workflow state transitions =======================================================================
           case WorkflowExecutionStarted    =>
             workflowStartTime = new DateTime(h.getEventTimestamp)
             workflowStartId = h.getEventId
@@ -71,28 +74,26 @@ object HistoryFactory {
             val dt = new DateTime(h.getEventTimestamp)
             Some(StepEvent[StepEnum](workflowStartId, h.getEventId, Right(WorkflowEventToken), "TIMED_OUT", workflowStartTime, Some(dt), new Duration(workflowStartTime, dt)))
 
+          // User-defined activity state transitions =======================================================================
           case ActivityTaskScheduled =>
             steps.put(h.getEventId, h)
             val attributes: ActivityTaskScheduledEventAttributes = h.getActivityTaskScheduledEventAttributes
             val id: String = attributes.getActivityId
             val (stepInput, _) = unpackInput(inputParser)(attributes.getInput)
-
-            val scheduledStep = ScheduledStep(enumFromName(id), stepInput)
-            scheduledSteps.put(h.getEventId, scheduledStep)
-
-            val eventStart: DateTime = new DateTime(h.getEventTimestamp)
-
+            val scheduledStep = DefinedStep(enumFromName(id), stepInput)
             if (currentStep != scheduledStep) {
               currentStep = scheduledStep
               currentStepStart = new DateTime(h.getEventTimestamp)
             }
+            scheduledSteps.put(h.getEventId, scheduledStep)
 
-            Some(StepEvent[StepEnum](h.getEventId, h.getEventId, Left(scheduledStep), "SCHEDULED", eventStart, None, new Duration(currentStepStart, eventStart)))
+            val eventStart: DateTime = new DateTime(h.getEventTimestamp)
+
+            Some(StepEvent[StepEnum](h.getEventId, h.getEventId, Left(scheduledStep), "SCHEDULED", eventStart, None, Duration.ZERO))
 
           case ActivityTaskStarted =>
             steps.put(h.getEventId, h)
             val eventId: lang.Long = h.getActivityTaskStartedEventAttributes.getScheduledEventId
-            val id: String = steps(eventId).getActivityTaskScheduledEventAttributes.getActivityId
             val eventStart: DateTime = new DateTime(h.getEventTimestamp)
             val scheduledStep: ScheduledStep[StepEnum] = scheduledSteps(eventId)
 
@@ -103,7 +104,7 @@ object HistoryFactory {
             steps.put(h.getEventId, h)
             val attributes: ActivityTaskCompletedEventAttributes = h.getActivityTaskCompletedEventAttributes
             val eventId: Long = attributes.getScheduledEventId
-            val scheduledStep = scheduledSteps(eventId)
+            val scheduledStep = scheduledSteps(eventId).asInstanceOf[DefinedStep[StepEnum]]
             val id: String = steps(eventId).getActivityTaskScheduledEventAttributes.getActivityId
             val result: StepResult = StepResult.deserialize(attributes.getResult)
             val eventStart: DateTime = new DateTime(steps(attributes.getStartedEventId).getEventTimestamp)
@@ -144,19 +145,63 @@ object HistoryFactory {
             assert(scheduledStep == currentStep, s"id[$scheduledStep] != currectStep[$currentStep]")
             Some(StepEvent[StepEnum](eventId, h.getEventId, Left(scheduledStep), StepResult.serialize(result), workflowStartTime, Some(endTime), new Duration(currentStepStart, endTime)))
 
-          case TimerStarted  =>
+          // Special activity state transitions =======================================================================
+
+          case TimerStarted if h.getTimerStartedEventAttributes.getControl == "SleepStep" =>
+            val attributes = h.getTimerStartedEventAttributes
+            val timerId = attributes.getTimerId
+            val scheduledStep = SleepStep[StepEnum](attributes.getStartToFireTimeout.toInt)
+            if (currentStep != scheduledStep) {
+              currentStep = scheduledStep
+              currentStepStart = new DateTime(h.getEventTimestamp)
+            }
+            startedTimers.put(timerId, h)
+            None
+
+          case TimerFired if startedTimers(h.getTimerFiredEventAttributes.getTimerId).getTimerStartedEventAttributes.getControl == "SleepStep" =>
+            val eventId = h.getEventId
+            val attributes = h.getTimerFiredEventAttributes
+            val timerId = attributes.getTimerId
+            val endTime: DateTime = new DateTime(h.getEventTimestamp.getTime)
+
+            val scheduledStep = SleepStep[StepEnum](startedTimers(attributes.getTimerId).getTimerStartedEventAttributes.getStartToFireTimeout.toInt)
+
+            val result = Success("Sleep finished")
+
+            assert(scheduledStep == currentStep, s"id[$scheduledStep] != currectStep[$currentStep]")
+            Some(StepEvent[StepEnum](eventId, eventId, Left(scheduledStep),StepResult.serialize(result), currentStepStart, Some(endTime), new Duration(currentStepStart, endTime)))
+
+          case TimerCanceled if startedTimers(h.getTimerCanceledEventAttributes.getTimerId).getTimerStartedEventAttributes.getControl == "SleepStep" =>
+            val eventId = h.getEventId
+            val attributes = h.getTimerCanceledEventAttributes
+            val timerId = attributes.getTimerId
+            val endTime: DateTime = new DateTime(h.getEventTimestamp.getTime)
+
+            val scheduledStep = SleepStep[StepEnum](startedTimers(attributes.getTimerId).getTimerStartedEventAttributes.getStartToFireTimeout.toInt)
+
+            val result = Cancelled("Sleep cancelled")
+
+            assert(scheduledStep == currentStep, s"id[$scheduledStep] != currectStep[$currentStep]")
+            Some(StepEvent[StepEnum](eventId,eventId, Left(scheduledStep),StepResult.serialize(result), currentStepStart, Some(endTime), new Duration(currentStepStart, endTime)))
+
+          // Retry timer state transitions =======================================================================
+          case TimerStarted =>
             val attributes = h.getTimerStartedEventAttributes
             val timerId = attributes.getTimerId
             startedTimers.put(timerId, h)
             None
-          case TimerFired    =>
+
+          case TimerFired =>
             val attributes = h.getTimerFiredEventAttributes
             val timerId = attributes.getTimerId
+            val scheduledStepStr = startedTimers(timerId).getTimerStartedEventAttributes.getControl
             firedTimers.put(timerId, h.getEventId)
             None
+
           case TimerCanceled =>
             val attributes = h.getTimerCanceledEventAttributes
             val timerId = attributes.getTimerId
+            val scheduledStepStr = startedTimers(timerId).getTimerStartedEventAttributes.getControl
             cancelledTimers.put(timerId, h.getEventId)
             None
           case _             => // There are many types of WF events which we simply do not care about.
@@ -173,26 +218,29 @@ object HistoryFactory {
 
         scheduledStepStr = startedTimers(timerId).getTimerStartedEventAttributes.getControl
         (stepName, stepInput) = unpackTimer(scheduledStepStr)
-        scheduledStep = ScheduledStep(enumFromName(stepName), stepInput)
+        definedStep = DefinedStep(enumFromName(stepName), stepInput)
 
-        handled = events.exists(stepEvent => handledEventFilter(firedEventId, scheduledStep, stepEvent))
+        handled = events.exists(stepEvent => handledEventFilter(firedEventId, definedStep, stepEvent))
         if !handled
       } yield {
-        scheduledStep
+        definedStep
       }
 
 
     val compactedHistory: util.List[StepEvent[StepEnum]] = filterStarts(events)
 
-    StepsHistory[SSWFInput, StepEnum](inputParser.deserialize(input), Collections.unmodifiableList(compactedHistory), Collections.unmodifiableSet(new util.HashSet[ScheduledStep[StepEnum]]
-    (firedSteps)))
+    StepsHistory[SSWFInput, StepEnum](
+      inputParser.deserialize(input),
+      Collections.unmodifiableList(compactedHistory),
+      Collections.unmodifiableSet(new util.HashSet[DefinedStep[StepEnum]](firedSteps))
+    )
   }
 
   def handledEventFilter[StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag, SSWFInput](firedEventId: Long,
                                                                                                scheduledStep: ScheduledStep[StepEnum],
                                                                                                stepEvent: StepEvent[StepEnum]): Boolean = {
-    val oldEnough: Boolean = stepEvent.uniqueId > firedEventId
+    val youngEnough: Boolean = stepEvent.uniqueId > firedEventId
     val rightStep: Boolean = stepEvent.event.fold(_ == scheduledStep, _ => false)
-    oldEnough && rightStep
+    youngEnough && rightStep
   }
 }

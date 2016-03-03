@@ -9,32 +9,26 @@ public class StdOutLogger implements Logger {
     }
 
     @Override public void warn(final Function0<String> message, final Throwable throwable) {
-        System.out.println("WARN: "+message);
-
+        System.out.println("WARN: "+message.apply());
     }
 
     @Override public void warn(final Function0<String> message) {
-
-        System.out.println("WARN: "+message);
+        System.out.println("WARN: "+message.apply());
     }
 
     @Override public void error(final Function0<String> message, final Throwable throwable) {
-
-        System.out.println("ERROR: "+message);
+        System.out.println("ERROR: "+message.apply());
     }
 
     @Override public void error(final Function0<String> message) {
-
-        System.out.println("ERROR: "+message);
+        System.out.println("ERROR: "+message.apply());
     }
 
     @Override public void debug(final Function0<String> message) {
-
-        System.out.println("DEBUG: "+message);
+        System.out.println("DEBUG: "+message.apply());
     }
 
     @Override public void info(final Function0<String> message) {
-        System.out.println("INFO: "+message);
-
+        System.out.println("INFO: "+message.apply());
     }
 }

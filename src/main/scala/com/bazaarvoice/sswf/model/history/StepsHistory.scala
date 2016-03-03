@@ -1,7 +1,7 @@
 package com.bazaarvoice.sswf.model.history
 
 import com.bazaarvoice.sswf.WorkflowStep
-import com.bazaarvoice.sswf.model.ScheduledStep
+import com.bazaarvoice.sswf.model.{DefinedStep, ScheduledStep}
 import org.joda.time.{DateTime, Duration}
 
 import scala.reflect.ClassTag
@@ -35,4 +35,4 @@ case class StepEvent[StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](
  */
 case class StepsHistory[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](input: SSWFInput,
                                                                                               events: java.util.List[StepEvent[StepEnum]],
-                                                                                              firedTimers: java.util.Set[ScheduledStep[StepEnum]])
+                                                                                              firedTimers: java.util.Set[DefinedStep[StepEnum]])

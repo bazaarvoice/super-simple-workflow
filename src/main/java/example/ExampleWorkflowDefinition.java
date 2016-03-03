@@ -2,7 +2,9 @@ package example;
 
 import com.bazaarvoice.sswf.HeartbeatCallback;
 import com.bazaarvoice.sswf.WorkflowDefinition;
+import com.bazaarvoice.sswf.model.DefinedStep;
 import com.bazaarvoice.sswf.model.ScheduledStep;
+import com.bazaarvoice.sswf.model.SleepStep;
 import com.bazaarvoice.sswf.model.StepInput;
 import com.bazaarvoice.sswf.model.history.StepsHistory;
 import com.bazaarvoice.sswf.model.result.InProgress;
@@ -23,11 +25,12 @@ public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWork
 
     @Override public List<ScheduledStep<ExampleWorkflowSteps>> workflow(final ExampleWorkflowInput exampleWorkflowInput) {
         return Arrays.asList(
-            new ScheduledStep<>(ExampleWorkflowSteps.EXTRACT_STEP),
-            new ScheduledStep<>(ExampleWorkflowSteps.TRANSFORM_STEP, "format1->format2"),
-            new ScheduledStep<>(ExampleWorkflowSteps.TRANSFORM_STEP, "format2->format3"),
-            new ScheduledStep<>(ExampleWorkflowSteps.TIMEOUT_ONCE_STEP),
-            new ScheduledStep<>(ExampleWorkflowSteps.LOAD_STEP)
+            new DefinedStep<>(ExampleWorkflowSteps.EXTRACT_STEP),
+            new DefinedStep<>(ExampleWorkflowSteps.TRANSFORM_STEP, "format1->format2"),
+            new DefinedStep<>(ExampleWorkflowSteps.TRANSFORM_STEP, "format2->format3"),
+            new SleepStep<>(60),
+            new DefinedStep<>(ExampleWorkflowSteps.TIMEOUT_ONCE_STEP),
+            new DefinedStep<>(ExampleWorkflowSteps.LOAD_STEP)
         );
     }
 

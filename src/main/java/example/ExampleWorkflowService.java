@@ -42,6 +42,7 @@ public class ExampleWorkflowService {
             .setSwf(swf)
             .setInputParser(inputParser)
             .setWorkflowDefinition(workflowDefinition)
+            .setLogger(new StdOutLogger())
             .build();
     final StepActionWorker<ExampleWorkflowInput, ExampleWorkflowSteps> actionWorker =
         new Builders.StepActionWorkerBuilder<>(ExampleWorkflowInput.class, ExampleWorkflowSteps.class)
@@ -49,7 +50,8 @@ public class ExampleWorkflowService {
             .setTaskList(taskList)
             .setSwf(swf)
             .setInputParser(inputParser)
-            .setWorkflowDefinition(workflowDefinition).build();
+            .setWorkflowDefinition(workflowDefinition)
+            .build();
     final WorkflowManagement<ExampleWorkflowInput, ExampleWorkflowSteps> workflowManagement =
         new Builders.WorkflowManagementBuilder<>(ExampleWorkflowInput.class, ExampleWorkflowSteps.class)
             .setDomain(domain)

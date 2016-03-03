@@ -5,12 +5,13 @@ import java.util.UUID
 
 import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflow
 import com.amazonaws.services.simpleworkflow.model._
-import com.bazaarvoice.sswf.model.ScheduledStep
+import com.bazaarvoice.sswf.model.{SleepStep, DefinedStep, ScheduledStep}
 import com.bazaarvoice.sswf.model.history.{HistoryFactory, StepEvent, StepsHistory}
 import com.bazaarvoice.sswf.model.result._
 import com.bazaarvoice.sswf.util.{packInput, packTimer}
-import com.bazaarvoice.sswf.{InputParser, Logger, WorkflowDefinition, WorkflowStep}
+import com.bazaarvoice.sswf._
 import com.sun.istack.internal.{NotNull, Nullable}
+import example.StdOutLogger
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -98,7 +99,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     def respond(d: Decision): RespondDecisionTaskCompletedRequest =
       new RespondDecisionTaskCompletedRequest().withDecisions(List(d)).withTaskToken(decisionTask.getTaskToken)
 
-    def resume(step: ScheduledStep[StepEnum]) = {
+    def resume(step: DefinedStep[StepEnum]) = {
       val scheduleActivityTaskDecisionAttributes: ScheduleActivityTaskDecisionAttributes = new ScheduleActivityTaskDecisionAttributes()
          .withActivityId(step.step.name)
          .withActivityType(new ActivityType().withName(step.step.name).withVersion(util.stepToVersion(step.step)))
@@ -110,24 +111,25 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
          .withScheduleActivityTaskDecisionAttributes(scheduleActivityTaskDecisionAttributes)
     }
 
-    def schedule(activity: Option[ScheduledStep[StepEnum]]) = activity match {
-      case None       =>
-        val message = "No more activities to schedule."
-        workflowDefinition.onFinish(decisionTask.getWorkflowExecution.getWorkflowId, decisionTask.getWorkflowExecution.getRunId, input, history, message)
-        var attributes: CompleteWorkflowExecutionDecisionAttributes = new CompleteWorkflowExecutionDecisionAttributes
-        attributes = attributes.withResult(message)
+    def finish() = {
+      val message = "No more activities to schedule."
+      workflowDefinition.onFinish(decisionTask.getWorkflowExecution.getWorkflowId, decisionTask.getWorkflowExecution.getRunId, input, history, message)
+      var attributes: CompleteWorkflowExecutionDecisionAttributes = new CompleteWorkflowExecutionDecisionAttributes
+      attributes = attributes.withResult(message)
 
-        new Decision().withDecisionType(DecisionType.CompleteWorkflowExecution).withCompleteWorkflowExecutionDecisionAttributes(attributes)
-      case Some(step) =>
-        val scheduleActivityTaskDecisionAttributes: ScheduleActivityTaskDecisionAttributes = new ScheduleActivityTaskDecisionAttributes()
-           .withActivityId(step.step.name)
-           .withActivityType(new ActivityType().withName(step.step.name).withVersion(util.stepToVersion(step.step)))
-           .withTaskList(new TaskList().withName(taskList))
-           .withInput(packInput(inputParser)(step.stepInput, input))
+      new Decision().withDecisionType(DecisionType.CompleteWorkflowExecution).withCompleteWorkflowExecutionDecisionAttributes(attributes)
+    }
 
-        new Decision()
-           .withDecisionType(DecisionType.ScheduleActivityTask)
-           .withScheduleActivityTaskDecisionAttributes(scheduleActivityTaskDecisionAttributes)
+    def schedule(step: DefinedStep[StepEnum]) = {
+      val scheduleActivityTaskDecisionAttributes: ScheduleActivityTaskDecisionAttributes = new ScheduleActivityTaskDecisionAttributes()
+         .withActivityId(step.step.name)
+         .withActivityType(new ActivityType().withName(step.step.name).withVersion(util.stepToVersion(step.step)))
+         .withTaskList(new TaskList().withName(taskList))
+         .withInput(packInput(inputParser)(step.stepInput, input))
+
+      new Decision()
+         .withDecisionType(DecisionType.ScheduleActivityTask)
+         .withScheduleActivityTaskDecisionAttributes(scheduleActivityTaskDecisionAttributes)
     }
 
     def fail(shortDescription: String, message: String) = {
@@ -141,7 +143,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
 
     log.debug(s"checking for fired timers for [${decisionTask.getStartedEventId}]")
     if (history.firedTimers.nonEmpty) {
-      return respond(schedule(Some(history.firedTimers.head)))
+      return respond(schedule(history.firedTimers.head))
     }
 
     log.debug(s"finding final states for [${decisionTask.getStartedEventId}]")
@@ -150,11 +152,17 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
       val result = StepResult.deserialize(e.result)
       if (finalStates.isEmpty) {
         finalStates.append(e)
-      } else if (finalStates.last.event.left.get.withoutResume == e.event.left.get.withoutResume) {
-        finalStates.remove(finalStates.length - 1)
-        finalStates.append(e)
       } else {
-        finalStates.append(e)
+        (finalStates.last.event.left.get, e.event.left.get) match {
+          case (lastDS: DefinedStep[StepEnum], eventDS: DefinedStep[StepEnum]) if lastDS.withoutResume == eventDS.withoutResume =>
+            finalStates.remove(finalStates.length - 1)
+            finalStates.append(e)
+          case (lastSS: SleepStep[StepEnum], eventSS: SleepStep[StepEnum]) if lastSS == eventSS                                 =>
+            finalStates.remove(finalStates.length - 1)
+            finalStates.append(e)
+          case _                                                                                                                =>
+            finalStates.append(e)
+        }
       }
     }
 
@@ -162,24 +170,37 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     val fsIt = finalStates.iterator
     for (step <- workflowDefinition.workflow(input)) {
       if (!fsIt.hasNext) {
-        return respond(schedule(Some(step)))
+        step match {
+          case definedStep: DefinedStep[StepEnum] => return respond(schedule(definedStep))
+          case sleepStep: SleepStep[StepEnum]     => return respond(scheduleSleep(sleepStep))
+        }
       } else {
         val thisFS = fsIt.next()
-        assert(thisFS.event.left.get.withoutResume == step, s"Did the workflow change? [${thisFS.event.left.get}] != [$step]")
-        val result = StepResult.deserialize(thisFS.result)
-        result match {
-          case Failed(m)                         => return respond(fail(s"Failed stage $step", Failed(m).toString))
-          case Cancelled(m)                      => return respond(fail(s"Cancelled stage $step", Cancelled(m).toString))
-          case InProgress(m)                     => return respond(waitRetry(step))
-          case TimedOut(timeoutType, resumeInfo) =>
-            println("got: " + TimedOut(timeoutType, resumeInfo))
-            return respond(resume(step.copy(stepInput = step.stepInput.copy(resumeProgress = resumeInfo))))
-          case Success(m)                        => ()
+        step match {
+          case definedStep: DefinedStep[StepEnum] =>
+            assert(thisFS.event.left.get.isInstanceOf[DefinedStep[StepEnum]], s"Did the workflow change? [${thisFS.event.left.get}] is not a DefinedStep")
+            assert(definedStep == thisFS.event.left.get.asInstanceOf[DefinedStep[StepEnum]].withoutResume, s"Did the workflow change? [${thisFS.event.left.get}] != [$definedStep]")
+            StepResult.deserialize(thisFS.result) match {
+              case Failed(m)                         => return respond(fail(s"Failed stage $definedStep", Failed(m).toString))
+              case Cancelled(m)                      => return respond(fail(s"Cancelled stage $definedStep", Cancelled(m).toString))
+              case InProgress(m)                     => return respond(waitRetry(definedStep))
+              case TimedOut(timeoutType, resumeInfo) =>
+                println("got: " + TimedOut(timeoutType, resumeInfo))
+                return respond(resume(definedStep.copy(stepInput = definedStep.stepInput.copy(resumeProgress = resumeInfo))))
+              case Success(m)                        => ()
+            }
+          case sleepStep: SleepStep[StepEnum]     =>
+            assert(thisFS.event.left.get.isInstanceOf[SleepStep[StepEnum]], s"Did the workflow change? [${thisFS.event.left.get}] is not a SleepStep")
+            assert(sleepStep == thisFS.event.left.get.asInstanceOf[SleepStep[StepEnum]], s"Did the workflow change? [${thisFS.event.left.get}] != [$sleepStep]")
+            StepResult.deserialize(thisFS.result) match {
+              case Success(m) => ()
+              case result     => throw new IllegalStateException(s"Unexpected result from a timer: $result")
+            }
         }
       }
     }
 
-    respond(schedule(None))
+    respond(finish())
   }
 
   private[this] def getFullHistory(decisionTask: DecisionTask): (DecisionTask, List[HistoryEvent]) = {
@@ -198,11 +219,20 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     (newDecisionTask, events)
   }
 
-  private[this] def waitRetry(retry: ScheduledStep[StepEnum]) = new Decision().withDecisionType(DecisionType.StartTimer).withStartTimerDecisionAttributes(
-    new StartTimerDecisionAttributes()
-       .withTimerId(UUID.randomUUID().toString)
-       .withControl(packTimer(retry.step.name, retry.stepInput))
-       .withStartToFireTimeout(retry.step.inProgressTimerSeconds.toString)
-  )
+  private[this] def scheduleSleep(step: SleepStep[StepEnum]) =
+    new Decision().withDecisionType(DecisionType.StartTimer).withStartTimerDecisionAttributes(
+      new StartTimerDecisionAttributes()
+         .withTimerId(UUID.randomUUID().toString)
+         .withControl("SleepStep")
+         .withStartToFireTimeout(step.sleepSeconds.toString)
+    )
+
+  private[this] def waitRetry(retry: DefinedStep[StepEnum]) =
+    new Decision().withDecisionType(DecisionType.StartTimer).withStartTimerDecisionAttributes(
+      new StartTimerDecisionAttributes()
+         .withTimerId(UUID.randomUUID().toString)
+         .withControl(packTimer(retry.step.name, retry.stepInput))
+         .withStartToFireTimeout(retry.step.inProgressTimerSeconds.toString)
+    )
 
 }
