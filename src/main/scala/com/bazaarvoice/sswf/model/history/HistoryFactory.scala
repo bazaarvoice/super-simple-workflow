@@ -97,7 +97,7 @@ object HistoryFactory {
             val eventStart: DateTime = new DateTime(h.getEventTimestamp)
             val scheduledStep: ScheduledStep[StepEnum] = scheduledSteps(eventId)
 
-            assert(scheduledStep == currentStep, s"id[$scheduledStep] != currectStep[$currentStep]")
+            assert(scheduledStep == currentStep, s"id[$scheduledStep] != currentStep[$currentStep]")
             Some(StepEvent[StepEnum](eventId, h.getEventId, Left(scheduledStep), "STARTED", eventStart, None, new Duration(currentStepStart, eventStart)))
 
           case ActivityTaskCompleted =>
@@ -111,7 +111,7 @@ object HistoryFactory {
             val endTime: DateTime = new DateTime(h.getEventTimestamp.getTime)
             completedStepCounts = completedStepCounts + (scheduledStep.step -> (completedStepCounts(scheduledStep.step) + 1))
 
-            assert(scheduledStep == currentStep, s"id[$scheduledStep] != currectStep[$currentStep]")
+            assert(scheduledStep == currentStep, s"id[$scheduledStep] != currentStep[$currentStep]")
             Some(StepEvent[StepEnum](eventId, h.getEventId, Left(scheduledStep), StepResult.serialize(result), eventStart, Some(endTime), new Duration(currentStepStart, endTime)))
 
           case ActivityTaskTimedOut =>
@@ -130,7 +130,7 @@ object HistoryFactory {
             val endTime: DateTime = new DateTime(h.getEventTimestamp.getTime)
             val scheduledStep: ScheduledStep[StepEnum] = scheduledSteps(eventId)
 
-            assert(scheduledStep == currentStep, s"id[$scheduledStep] != currectStep[$currentStep]")
+            assert(scheduledStep == currentStep, s"id[$scheduledStep] != currentStep[$currentStep]")
             Some(StepEvent[StepEnum](eventId, h.getEventId, Left(scheduledStep), StepResult.serialize(result), eventStart, Some(endTime), new Duration(currentStepStart, endTime)))
 
           case ActivityTaskFailed =>
@@ -142,12 +142,13 @@ object HistoryFactory {
             val result = Failed(s"${attributes.getReason}:${attributes.getDetails}")
             val scheduledStep: ScheduledStep[StepEnum] = scheduledSteps(eventId)
 
-            assert(scheduledStep == currentStep, s"id[$scheduledStep] != currectStep[$currentStep]")
+            assert(scheduledStep == currentStep, s"id[$scheduledStep] != currentStep[$currentStep]")
             Some(StepEvent[StepEnum](eventId, h.getEventId, Left(scheduledStep), StepResult.serialize(result), workflowStartTime, Some(endTime), new Duration(currentStepStart, endTime)))
 
           // Special activity state transitions =======================================================================
 
           case TimerStarted if h.getTimerStartedEventAttributes.getControl == "SleepStep" =>
+            val eventId = h.getEventId
             val attributes = h.getTimerStartedEventAttributes
             val timerId = attributes.getTimerId
             val scheduledStep = SleepStep[StepEnum](attributes.getStartToFireTimeout.toInt)
@@ -156,33 +157,37 @@ object HistoryFactory {
               currentStepStart = new DateTime(h.getEventTimestamp)
             }
             startedTimers.put(timerId, h)
-            None
+
+            assert(scheduledStep == currentStep, s"id[$scheduledStep] != currentStep[$currentStep]")
+            Some(StepEvent[StepEnum](eventId, eventId, Left(scheduledStep), "STARTED", currentStepStart, None, Duration.ZERO))
 
           case TimerFired if startedTimers(h.getTimerFiredEventAttributes.getTimerId).getTimerStartedEventAttributes.getControl == "SleepStep" =>
             val eventId = h.getEventId
             val attributes = h.getTimerFiredEventAttributes
             val timerId = attributes.getTimerId
+            val canonicalId = startedTimers.getOrElse(timerId, h).getEventId
             val endTime: DateTime = new DateTime(h.getEventTimestamp.getTime)
 
             val scheduledStep = SleepStep[StepEnum](startedTimers(attributes.getTimerId).getTimerStartedEventAttributes.getStartToFireTimeout.toInt)
 
             val result = Success("Sleep finished")
 
-            assert(scheduledStep == currentStep, s"id[$scheduledStep] != currectStep[$currentStep]")
-            Some(StepEvent[StepEnum](eventId, eventId, Left(scheduledStep),StepResult.serialize(result), currentStepStart, Some(endTime), new Duration(currentStepStart, endTime)))
+            assert(scheduledStep == currentStep, s"id[$scheduledStep] != currentStep[$currentStep]")
+            Some(StepEvent[StepEnum](canonicalId, eventId, Left(scheduledStep), StepResult.serialize(result), currentStepStart, Some(endTime), new Duration(currentStepStart, endTime)))
 
           case TimerCanceled if startedTimers(h.getTimerCanceledEventAttributes.getTimerId).getTimerStartedEventAttributes.getControl == "SleepStep" =>
             val eventId = h.getEventId
             val attributes = h.getTimerCanceledEventAttributes
             val timerId = attributes.getTimerId
+            val canonicalId = startedTimers.getOrElse(timerId, h).getEventId
             val endTime: DateTime = new DateTime(h.getEventTimestamp.getTime)
 
             val scheduledStep = SleepStep[StepEnum](startedTimers(attributes.getTimerId).getTimerStartedEventAttributes.getStartToFireTimeout.toInt)
 
             val result = Cancelled("Sleep cancelled")
 
-            assert(scheduledStep == currentStep, s"id[$scheduledStep] != currectStep[$currentStep]")
-            Some(StepEvent[StepEnum](eventId,eventId, Left(scheduledStep),StepResult.serialize(result), currentStepStart, Some(endTime), new Duration(currentStepStart, endTime)))
+            assert(scheduledStep == currentStep, s"id[$scheduledStep] != currentStep[$currentStep]")
+            Some(StepEvent[StepEnum](canonicalId, eventId, Left(scheduledStep), StepResult.serialize(result), currentStepStart, Some(endTime), new Duration(currentStepStart, endTime)))
 
           // Retry timer state transitions =======================================================================
           case TimerStarted =>
