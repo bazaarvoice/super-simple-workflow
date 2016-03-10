@@ -1,5 +1,6 @@
 package example;
 
+import com.amazonaws.services.simpleworkflow.model.WorkflowExecution;
 import com.bazaarvoice.sswf.HeartbeatCallback;
 import com.bazaarvoice.sswf.WorkflowDefinition;
 import com.bazaarvoice.sswf.model.DefinedStep;
@@ -10,6 +11,8 @@ import com.bazaarvoice.sswf.model.history.StepsHistory;
 import com.bazaarvoice.sswf.model.result.InProgress;
 import com.bazaarvoice.sswf.model.result.StepResult;
 import com.bazaarvoice.sswf.model.result.Success;
+import com.bazaarvoice.sswf.model.result.Wait;
+import com.bazaarvoice.sswf.service.WorkflowManagement;
 
 import java.util.Arrays;
 import java.util.List;
@@ -18,10 +21,18 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWorkflowInput, ExampleWorkflowSteps> {
+    private WorkflowManagement<ExampleWorkflowInput, ExampleWorkflowSteps> workflowManagement;
+    private ExampleSignalHandler exampleSignalHandler;
+
     // I'm implementing a little state machine here to demonstrate the desired pattern of checking invariants first,
     // returning InProgress until they are done, and returning Success if and only if all invariants are met.
     // This results in a workflow whose steps are idempotent, and which is therefore restartable (and much less headachey).
     private static Map<String, String> state = new ConcurrentHashMap<>();
+
+    public ExampleWorkflowDefinition(final WorkflowManagement<ExampleWorkflowInput, ExampleWorkflowSteps> workflowManagement, final ExampleSignalHandler exampleSignalHandler) {
+        this.workflowManagement = workflowManagement;
+        this.exampleSignalHandler = exampleSignalHandler;
+    }
 
     @Override public List<ScheduledStep<ExampleWorkflowSteps>> workflow(final ExampleWorkflowInput exampleWorkflowInput) {
         return Arrays.asList(
@@ -52,7 +63,11 @@ public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWork
         System.out.println("[" + workflow + "/" + run + "] Workflow(" + exampleWorkflowInput.getName() + ") Finished!!! " + message);
     }
 
-    @Override public StepResult act(final ExampleWorkflowSteps step, final ExampleWorkflowInput exampleWorkflowInput, final StepInput stepInput, final HeartbeatCallback heartbeatCallback) {
+    @Override public StepResult act(final ExampleWorkflowSteps step,
+                                    final ExampleWorkflowInput exampleWorkflowInput,
+                                    final StepInput stepInput,
+                                    final HeartbeatCallback heartbeatCallback,
+                                    final WorkflowExecution workflowExecution) {
         switch (step) {
             case EXTRACT_STEP:
                 // Note we're not required to cancel if this is true, it's just a request.
@@ -71,11 +86,11 @@ public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWork
                 }
                 return new Success("Nothing to do!");
             case LOAD_STEP:
-                if (!Objects.equals(state.get(exampleWorkflowInput.getName()), "load finished")) {
-                    state.put(exampleWorkflowInput.getName(), "load finished");
-                    return new InProgress("load started");
-                }
-                return new Success("load finished");
+                final String signal1 = workflowManagement.generateSignal(workflowExecution.getWorkflowId(), workflowExecution.getRunId());
+                exampleSignalHandler.addSignal(signal1);
+                final String signal2 = workflowManagement.generateSignal(workflowExecution.getWorkflowId(), workflowExecution.getRunId());
+                exampleSignalHandler.addSignal(signal2);
+                return new Wait(60, signal1, signal2);
             case TIMEOUT_ONCE_STEP:
                 System.out.println("resume: " + stepInput.resumeProgress());
                 if (!Objects.equals(state.get(exampleWorkflowInput.getName()), "timeout_once finished")) {

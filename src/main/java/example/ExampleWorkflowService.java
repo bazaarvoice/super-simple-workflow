@@ -33,7 +33,21 @@ public class ExampleWorkflowService {
     final String taskList = "my-machine";
 
     final ExampleWorkflowInput.Parser inputParser = new ExampleWorkflowInput.Parser();
-    final ExampleWorkflowDefinition workflowDefinition = new ExampleWorkflowDefinition();
+    final WorkflowManagement<ExampleWorkflowInput, ExampleWorkflowSteps> workflowManagement =
+        new Builders.WorkflowManagementBuilder<>(ExampleWorkflowInput.class, ExampleWorkflowSteps.class)
+            .setDomain(domain)
+            .setWorkflow(workflow)
+            .setWorkflowVersion(workflowVersion)
+            .setTaskList(taskList)
+            .setSwf(swf)
+            .setWorkflowExecutionTimeoutSeconds(60 * 60 * 24 * 30)
+            .setWorkflowExecutionRetentionPeriodDays(30)
+            .setStepScheduleToStartTimeoutSeconds(30)
+            .setInputParser(inputParser)
+            .build();
+
+    final ExampleSignalHandler signalHandler = new ExampleSignalHandler(workflowManagement);
+    final ExampleWorkflowDefinition workflowDefinition = new ExampleWorkflowDefinition(workflowManagement, signalHandler);
 
     final StepDecisionWorker<ExampleWorkflowInput, ExampleWorkflowSteps> decisionWorker =
         new Builders.StepDecisionWorkerBuilder<>(ExampleWorkflowInput.class, ExampleWorkflowSteps.class)
@@ -52,18 +66,6 @@ public class ExampleWorkflowService {
             .setInputParser(inputParser)
             .setWorkflowDefinition(workflowDefinition)
             .build();
-    final WorkflowManagement<ExampleWorkflowInput, ExampleWorkflowSteps> workflowManagement =
-        new Builders.WorkflowManagementBuilder<>(ExampleWorkflowInput.class, ExampleWorkflowSteps.class)
-            .setDomain(domain)
-            .setWorkflow(workflow)
-            .setWorkflowVersion(workflowVersion)
-            .setTaskList(taskList)
-            .setSwf(swf)
-            .setWorkflowExecutionTimeoutSeconds(60 * 60 * 24 * 30)
-            .setWorkflowExecutionRetentionPeriodDays(30)
-            .setStepScheduleToStartTimeoutSeconds(30)
-            .setInputParser(inputParser)
-            .build();
 
     final ScheduledExecutorService decisionExecutor = Executors.newSingleThreadScheduledExecutor();
     final ScheduledExecutorService actionExecutor = Executors.newScheduledThreadPool(3); // We'll let a few actions (from different workflow executions run cuncurrently)
@@ -72,6 +74,8 @@ public class ExampleWorkflowService {
 
     public void start() {
         workflowManagement.registerWorkflow();
+
+        signalHandler.start();
 
         decisionExecutor.scheduleAtFixedRate(() -> {
             try {

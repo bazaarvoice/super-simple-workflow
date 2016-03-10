@@ -9,39 +9,43 @@ import com.bazaarvoice.sswf.{InputParser, WorkflowStep}
 
 import scala.collection.JavaConversions.collectionAsScalaIterable
 import scala.reflect._
+import scala.util.Random
 
 
 /**
- * This is where you register and start workflows.
- * <br/>
- * In SWF, there are domains, workflow types, activities that need to be registered. You provide all the config we need for activities in the StepEnum. You give the parameters for domain and
- * workflow type here.
- * <br/>
- * This class is implemented so that you can call registerWorkflow() every time your app starts, and we will register anything that needs to be registered, so you should be able to manage your
- * whole workflow from this library.
- *
- * @param domain The domain of the workflow: <a href="http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-dev-domain.html">AWS docs</a>
- *               as well as <a href="https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#managing-versions-and-names-of-things"> the README</a>
- * @param taskList If you execute the same workflow in different environments, use different task lists. Think of them as independent sets of actors working on the same logical workflow, but in
- *                 different contexts (like production/qa/development/your machine).
- *                 <a href="http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-dev-task-lists.html">AWS docs</a>
- *                 as well as <a href="https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#managing-versions-and-names-of-things"> the README</a>
- * @param workflow The id of your particular workflow. See "WorkflowType" in <a href="http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-dev-obj-ident.html">the AWS docs</a>
- *                 as well as <a href="https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#managing-versions-and-names-of-things">the README</a>.
- * @param workflowVersion You can version workflows, although it's not clear what purpose that serves. Advice: just think of this as an administrative notation. See
- *                        <a href="https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#managing-versions-and-names-of-things">the README</a>.
- * @param swf The AWS SWF client
- * @param workflowExecutionTimeoutSeconds How long to let the entire workflow run. This only comes in to play if 1) The decision threads die or 2) A step gets into an "infinite loop" in which it
- *                                        always returns InProgress without making any actual progress. The default is set to one month on the assumption that you'll monitor the workflow and
- *                                        fix either of those problems if they occur, letting the workflow resume and complete. If you prefer to let the workflow fail, you'll want to set it lower.
- * @param workflowExecutionRetentionPeriodDays How long to keep _completed_ workflow information. Default: one month.
- * @param stepScheduleToStartTimeoutSeconds The duration you expect to pass _after_ a task is scheduled, and _before_ an actionWorker picks it up. If there is always a free actionWorker, this is
- *                                          just the polling interval for actions to execute. If all the actionWorkers are busy, though, the action may time out waiting to start. This isn't
- *                                          harmful, though, since the decisionWorker will simply re-schedule it. Advice: make your actionWorker pool large enough that all scheduled work can
- *                                          execute immediately, and set this timeout to the polling interval for action work. Default: 60s
- * @param inputParser See InputParser
- * @tparam StepEnum The enum containing workflow step definitions
- */
+  * This is where you register and start workflows.
+  * <br/>
+  * In SWF, there are domains, workflow types, activities that need to be registered. You provide all the config we need for activities in the StepEnum. You give the parameters for domain and
+  * workflow type here.
+  * <br/>
+  * This class is implemented so that you can call registerWorkflow() every time your app starts, and we will register anything that needs to be registered, so you should be able to manage your
+  * whole workflow from this library.
+  *
+  * @param domain                               The domain of the workflow: <a href="http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-dev-domain.html">AWS docs</a>
+  *                                             as well as <a href="https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#managing-versions-and-names-of-things"> the README</a>
+  * @param taskList                             If you execute the same workflow in different environments, use different task lists. Think of them as independent sets of actors working on the same
+  *                                             logical workflow, but in
+  *                                             different contexts (like production/qa/development/your machine).
+  *                                             <a href="http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-dev-task-lists.html">AWS docs</a>
+  *                                             as well as <a href="https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#managing-versions-and-names-of-things"> the README</a>
+  * @param workflow                             The id of your particular workflow. See "WorkflowType" in <a href="http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-dev-obj-ident
+  *                                             .html">the AWS docs</a>
+  *                                             as well as <a href="https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#managing-versions-and-names-of-things">the README</a>.
+  * @param workflowVersion                      You can version workflows, although it's not clear what purpose that serves. Advice: just think of this as an administrative notation. See
+  *                                             <a href="https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#managing-versions-and-names-of-things">the README</a>.
+  * @param swf                                  The AWS SWF client
+  * @param workflowExecutionTimeoutSeconds      How long to let the entire workflow run. This only comes in to play if 1) The decision threads die or 2) A step gets into an "infinite loop" in which it
+  *                                             always returns InProgress without making any actual progress. The default is set to one month on the assumption that you'll monitor the workflow and
+  *                                             fix either of those problems if they occur, letting the workflow resume and complete. If you prefer to let the workflow fail, you'll want to set it
+  *                                             lower.
+  * @param workflowExecutionRetentionPeriodDays How long to keep _completed_ workflow information. Default: one month.
+  * @param stepScheduleToStartTimeoutSeconds    The duration you expect to pass _after_ a task is scheduled, and _before_ an actionWorker picks it up. If there is always a free actionWorker, this is
+  *                                             just the polling interval for actions to execute. If all the actionWorkers are busy, though, the action may time out waiting to start. This isn't
+  *                                             harmful, though, since the decisionWorker will simply re-schedule it. Advice: make your actionWorker pool large enough that all scheduled work can
+  *                                             execute immediately, and set this timeout to the polling interval for action work. Default: 60s
+  * @param inputParser                          See InputParser
+  * @tparam StepEnum The enum containing workflow step definitions
+  */
 class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](domain: String,
                                                                                                workflow: String,
                                                                                                workflowVersion: String,
@@ -54,9 +58,9 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
 
 
   /**
-   * Register the domain,workflow,and activities if they are not already registered.
-   * If you have marked any of these as DEPRECATED through the SWF api, this method will throw an exception telling you to delete the relevant config first.
-   */
+    * Register the domain,workflow,and activities if they are not already registered.
+    * If you have marked any of these as DEPRECATED through the SWF api, this method will throw an exception telling you to delete the relevant config first.
+    */
   def registerWorkflow(): Unit = {
     registerDomain()
     registerWorkflowType()
@@ -65,12 +69,12 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
 
 
   /**
-   * Submit/start a workflow execution.
-   *
-   * @param workflowId A unique identifier for this particular workflow execution
-   * @param input Whatever input you need to provide to the workflow
-   * @return tracking information for the workflow
-   */
+    * Submit/start a workflow execution.
+    *
+    * @param workflowId A unique identifier for this particular workflow execution
+    * @param input      Whatever input you need to provide to the workflow
+    * @return tracking information for the workflow
+    */
   def startWorkflow(workflowId: String, input: SSWFInput): WorkflowExecution = {
     val inputString = inputParser.serialize(input)
     val run = swf.startWorkflowExecution(new StartWorkflowExecutionRequest()
@@ -96,11 +100,39 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
   }
 
   /**
-   * List all the executions for this domain and workflow within the time window. (regardless of version)
-   * @param from Start time to search
-   * @param to End time to search
-   * @return an unmodifiable list of matching executions
-   */
+    * Use this method to generate signals for use with the Wait result
+    *
+    * The format of the signal is publicly documented as 3 pipe-delimited fields with workflowId,runId, and a unique signal name.
+    *
+    * @return a signal token for passing to Wait and for calling signalWorkflow with.
+    */
+  def generateSignal(workflowId: String, runId: String) =
+    workflowId + "|" + runId + "|" + new Random().nextLong().toHexString // WARNING: this format is public, so if you change it, you need to update the docs.
+
+  /**
+    * Use this method to send a previously generated signal to the workflow that generated it.
+    */
+  def signalWorkflow(signal: String) = {
+    signal.split('|').toList match {
+      case workflowId :: runId :: _ :: Nil =>
+        swf.signalWorkflowExecution(new SignalWorkflowExecutionRequest()
+           .withDomain(domain)
+           .withWorkflowId(workflowId)
+           .withRunId(runId)
+           .withSignalName(signal)
+        )
+      case _                               =>
+        throw new IllegalArgumentException(s"Incorrectly formatted signal [$signal]")
+    }
+  }
+
+  /**
+    * List all the executions for this domain and workflow within the time window. (regardless of version)
+    *
+    * @param from Start time to search
+    * @param to   End time to search
+    * @return an unmodifiable list of matching executions
+    */
   def listExecutions(from: Date, to: Date): java.util.List[WorkflowExecutionInfo] = {
     val openRequest: ListOpenWorkflowExecutionsRequest = new ListOpenWorkflowExecutionsRequest()
        .withDomain(domain)
@@ -116,13 +148,13 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
   }
 
   /**
-   * List all the executions for this domain, workflow, and workflowId within the time window. (regardless of version)
-   *
-   * @param from Start time to search
-   * @param to End time to search
-   * @param workflowId The particular workflow id to list executions for
-   * @return an unmodifiable list of matching executions
-   */
+    * List all the executions for this domain, workflow, and workflowId within the time window. (regardless of version)
+    *
+    * @param from       Start time to search
+    * @param to         End time to search
+    * @param workflowId The particular workflow id to list executions for
+    * @return an unmodifiable list of matching executions
+    */
   def listExecutions(from: Date, to: Date, workflowId: String): java.util.List[WorkflowExecutionInfo] = {
     val openRequest: ListOpenWorkflowExecutionsRequest = new ListOpenWorkflowExecutionsRequest()
        .withDomain(domain)
@@ -138,11 +170,12 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
   }
 
   /**
-   * List all the events from an execution of a workflow.
-   * @param workflowId The particular workflow id to list events for
-   * @param runId The particular run of the workflow id to list events for
-   * @return
-   */
+    * List all the events from an execution of a workflow.
+    *
+    * @param workflowId The particular workflow id to list events for
+    * @param runId      The particular run of the workflow id to list events for
+    * @return
+    */
   def describeExecution(workflowId: String, runId: String): StepsHistory[SSWFInput, StepEnum] = {
     val request: GetWorkflowExecutionHistoryRequest = new GetWorkflowExecutionHistoryRequest()
        .withDomain(domain)
@@ -187,7 +220,7 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
   private[this] def registerWorkflowType(): Unit = {
     try {
       val workflowType: WorkflowTypeDetail = swf.describeWorkflowType(new DescribeWorkflowTypeRequest().withDomain(domain).withWorkflowType(new WorkflowType().withName(workflow).withVersion
-         (workflowVersion)))
+      (workflowVersion)))
       assert(workflowType.getTypeInfo.getStatus == "REGISTERED", s"workflow[$workflow/$workflowVersion] is not REGISTERED [${workflowType.getTypeInfo.getStatus}]. Please delete it and then re-run.")
     } catch {
       case e: UnknownResourceException =>

@@ -25,11 +25,11 @@ object HistoryFactory {
     def enumFromName(name: String): StepEnum = Enum.valueOf(classTag[StepEnum].runtimeClass.asInstanceOf[Class[StepEnum]], name)
 
     def filterStarts(s: List[StepEvent[StepEnum]]): List[StepEvent[StepEnum]] = s match {
-      case Nil | _ :: Nil =>
+      case Nil | _ :: Nil                                                     =>
         s
       case first :: second :: rest if first.canonicalId == second.canonicalId =>
         filterStarts(second :: rest)
-      case first :: rest =>
+      case first :: rest                                                      =>
         first :: filterStarts(rest)
     }
 
@@ -49,28 +49,30 @@ object HistoryFactory {
 
     var completedStepCounts = Map[StepEnum, Int]().withDefaultValue(0)
 
+    var expiredSignals = Set[String]()
+
     val eventsRaw =
       for {h <- swfHistory} yield {
         EventType.fromValue(h.getEventType) match {
           // Workflow state transitions =======================================================================
-          case WorkflowExecutionStarted =>
+          case WorkflowExecutionStarted    =>
             workflowStartTime = new DateTime(h.getEventTimestamp)
             workflowStartId = h.getEventId
             input = h.getWorkflowExecutionStartedEventAttributes.getInput
             Some(StepEvent[StepEnum](workflowStartId, h.getEventId, Right(WorkflowEventToken), "STARTED", workflowStartTime, None, Duration.ZERO))
-          case WorkflowExecutionCompleted =>
+          case WorkflowExecutionCompleted  =>
             val dt = new DateTime(h.getEventTimestamp)
             Some(StepEvent[StepEnum](workflowStartId, h.getEventId, Right(WorkflowEventToken), "SUCCESS", workflowStartTime, Some(dt), new Duration(workflowStartTime, dt)))
-          case WorkflowExecutionFailed =>
+          case WorkflowExecutionFailed     =>
             val dt = new DateTime(h.getEventTimestamp)
             Some(StepEvent[StepEnum](workflowStartId, h.getEventId, Right(WorkflowEventToken), "FAILED", workflowStartTime, Some(dt), new Duration(workflowStartTime, dt)))
-          case WorkflowExecutionCanceled =>
+          case WorkflowExecutionCanceled   =>
             val dt = new DateTime(h.getEventTimestamp)
             Some(StepEvent[StepEnum](workflowStartId, h.getEventId, Right(WorkflowEventToken), "CANCELED", workflowStartTime, Some(dt), new Duration(workflowStartTime, dt)))
           case WorkflowExecutionTerminated =>
             val dt = new DateTime(h.getEventTimestamp)
             Some(StepEvent[StepEnum](workflowStartId, h.getEventId, Right(WorkflowEventToken), "TERMINATED", workflowStartTime, Some(dt), new Duration(workflowStartTime, dt)))
-          case WorkflowExecutionTimedOut =>
+          case WorkflowExecutionTimedOut   =>
             val dt = new DateTime(h.getEventTimestamp)
             Some(StepEvent[StepEnum](workflowStartId, h.getEventId, Right(WorkflowEventToken), "TIMED_OUT", workflowStartTime, Some(dt), new Duration(workflowStartTime, dt)))
 
@@ -186,6 +188,36 @@ object HistoryFactory {
             assert(scheduledStep == currentStep, s"id[$scheduledStep] != currentStep[$currentStep]")
             Some(StepEvent[StepEnum](canonicalId, eventId, Left(scheduledStep), StepResult.serialize(result), currentStepStart, Some(endTime), new Duration(currentStepStart, endTime)))
 
+          // Workflow Signals ==================================================================================
+          case TimerStarted if h.getTimerStartedEventAttributes.getControl.startsWith("WaitForSignals:") =>
+            // This is a byproduct of starting the signal wait. We don't really want it to be part of the workflow history.
+            val attributes = h.getTimerStartedEventAttributes
+            val timerId = attributes.getTimerId
+            startedTimers.put(timerId, h)
+            None
+
+          case TimerFired if startedTimers(h.getTimerFiredEventAttributes.getTimerId).getTimerStartedEventAttributes.getControl.startsWith("WaitForSignals:") =>
+            val control = startedTimers(h.getTimerFiredEventAttributes.getTimerId).getTimerStartedEventAttributes.getControl
+            val _ :: signals = control.split(":").toList
+            expiredSignals = expiredSignals ++ signals
+
+            // Firing of this timer may indicate a WAIT step failure, or it might be no problem.
+            // We don't know which it is right now, so just keep it out of the history.
+            None
+
+          case TimerCanceled if startedTimers(h.getTimerCanceledEventAttributes.getTimerId).getTimerStartedEventAttributes.getControl.startsWith("WaitForSignals:") =>
+            // canceled timers are irrelevant for our purposes here.
+            None
+
+          case WorkflowExecutionSignaled =>
+            val attributes = h.getWorkflowExecutionSignaledEventAttributes
+            val signalName: String = attributes.getSignalName
+
+            val endTime: DateTime = new DateTime(h.getEventTimestamp.getTime)
+
+            Some(StepEvent[StepEnum](h.getEventId, h.getEventId, Right(s"SIGNAL:$signalName"), "RECEIVED", currentStepStart, Some(endTime), new Duration(currentStepStart, endTime)))
+
+
           // Retry timer state transitions =======================================================================
           case TimerStarted =>
             val attributes = h.getTimerStartedEventAttributes
@@ -206,7 +238,9 @@ object HistoryFactory {
             //            val scheduledStepStr = startedTimers(timerId).getTimerStartedEventAttributes.getControl
             cancelledTimers.put(timerId, h.getEventId)
             None
-          case _ => // There are many types of WF events which we simply do not care about.
+
+          // There are many types of WF events which we simply do not care about ===============================
+          case _ =>
             None
         }
       }
@@ -234,7 +268,8 @@ object HistoryFactory {
     StepsHistory[SSWFInput, StepEnum](
       inputParser.deserialize(input),
       Collections.unmodifiableList(compactedHistory),
-      Collections.unmodifiableSet(new util.HashSet[DefinedStep[StepEnum]](firedSteps))
+      Collections.unmodifiableSet(new util.HashSet[DefinedStep[StepEnum]](firedSteps)),
+      Collections.unmodifiableSet(expiredSignals)
     )
   }
 

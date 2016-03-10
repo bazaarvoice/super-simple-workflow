@@ -5,13 +5,12 @@ import java.util.UUID
 
 import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflow
 import com.amazonaws.services.simpleworkflow.model._
-import com.bazaarvoice.sswf.model.{SleepStep, DefinedStep, ScheduledStep}
+import com.bazaarvoice.sswf._
 import com.bazaarvoice.sswf.model.history.{HistoryFactory, StepEvent, StepsHistory}
 import com.bazaarvoice.sswf.model.result._
+import com.bazaarvoice.sswf.model.{DefinedStep, SleepStep}
 import com.bazaarvoice.sswf.util.{packInput, packTimer}
-import com.bazaarvoice.sswf._
 import com.sun.istack.internal.{NotNull, Nullable}
-import example.StdOutLogger
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -19,33 +18,34 @@ import scala.reflect.ClassTag
 
 
 /**
- * The worker class responsible for scheduling workflow actions. The class is built so that you can plug it in to a scheduled service of your choice.
- * First, call <code>pollForDecisionToMake()</code> to determine if a decision needs to be made, and then call <code>makeDecision()</code> to make the decision.
- * <br/>
- * You could obviously poll and work in the same thread, but remember that this worker can handle many concurrent workflows, so separating them lets you have one thread polling
- * and then a pool of threads simultaneously working on scheduling decisions.
- * <br/>
- * Example:
- * <code>
- * runOne() {
- * task := worker.pollForDecisionToMake()
- * if (task != null) {
- * threadPool.submit(() -> { worker.makeDecision(task) })
- * }
- * </code>
- *
- * @param domain The domain of the workflow: <a href="http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-dev-domain.html">AWS docs</a>
- *               as well as <a href="https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#managing-versions-and-names-of-things"> the README</a>
- * @param taskList If you execute the same workflow in different environments, use different task lists. Think of them as independent sets of actors working on the same logical workflow, but in
- *                 different contexts (like production/qa/development/your machine).
- *                 <a href="http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-dev-task-lists.html">AWS docs</a>
- *                 as well as <a href="https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#managing-versions-and-names-of-things"> the README</a>
- * @param swf The SWF service client
- * @param inputParser see InputParser
- * @param workflowDefinition see StepsDefinition
- * @tparam SSWFInput The type of the parsed workflow input
- * @tparam StepEnum The enum containing workflow step definitions
- */
+  * The worker class responsible for scheduling workflow actions. The class is built so that you can plug it in to a scheduled service of your choice.
+  * First, call <code>pollForDecisionToMake()</code> to determine if a decision needs to be made, and then call <code>makeDecision()</code> to make the decision.
+  * <br/>
+  * You could obviously poll and work in the same thread, but remember that this worker can handle many concurrent workflows, so separating them lets you have one thread polling
+  * and then a pool of threads simultaneously working on scheduling decisions.
+  * <br/>
+  * Example:
+  * <code>
+  * runOne() {
+  * task := worker.pollForDecisionToMake()
+  * if (task != null) {
+  * threadPool.submit(() -> { worker.makeDecision(task) })
+  * }
+  * </code>
+  *
+  * @param domain             The domain of the workflow: <a href="http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-dev-domain.html">AWS docs</a>
+  *                           as well as <a href="https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#managing-versions-and-names-of-things"> the README</a>
+  * @param taskList           If you execute the same workflow in different environments, use different task lists. Think of them as independent sets of actors working on the same logical workflow,
+  *                           but in
+  *                           different contexts (like production/qa/development/your machine).
+  *                           <a href="http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-dev-task-lists.html">AWS docs</a>
+  *                           as well as <a href="https://github.com/bazaarvoice/super-simple-workflow/blob/master/README.md#managing-versions-and-names-of-things"> the README</a>
+  * @param swf                The SWF service client
+  * @param inputParser        see InputParser
+  * @param workflowDefinition see StepsDefinition
+  * @tparam SSWFInput The type of the parsed workflow input
+  * @tparam StepEnum  The enum containing workflow step definitions
+  */
 class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](domain: String,
                                                                                                taskList: String,
                                                                                                swf: AmazonSimpleWorkflow,
@@ -55,10 +55,11 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
   private[this] val identity = ManagementFactory.getRuntimeMXBean.getName
 
   /**
-   * Find out if any workflows in our domain/taskList need decisions made.
-   * A variety of exceptions are possible. Make sure your poller threads can't die without replacement.
-   * @return The decision task, if there is one. Null otherwise.
-   */
+    * Find out if any workflows in our domain/taskList need decisions made.
+    * A variety of exceptions are possible. Make sure your poller threads can't die without replacement.
+    *
+    * @return The decision task, if there is one. Null otherwise.
+    */
   @Nullable
   def pollForDecisionsToMake(): DecisionTask = {
     val decisionTask: DecisionTask = swf.pollForDecisionTask(new PollForDecisionTaskRequest().withDomain(domain).withTaskList(new TaskList().withName(taskList)).withIdentity(identity))
@@ -70,11 +71,12 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
   }
 
   /**
-   * Given the context of a workflow execution, decide what needs to be done next.
-   * A variety of exceptions are possible. Make sure your worker threads can't die without replacement.
-   * @param decisionTask The task from SWF. Must not be null!
-   * @return The decision that we sent to SWF
-   */
+    * Given the context of a workflow execution, decide what needs to be done next.
+    * A variety of exceptions are possible. Make sure your worker threads can't die without replacement.
+    *
+    * @param decisionTask The task from SWF. Must not be null!
+    * @return The decision that we sent to SWF
+    */
   def makeDecision(@NotNull decisionTask: DecisionTask): RespondDecisionTaskCompletedRequest = {
     require(decisionTask != null, "decisionTask must not be null")
 
@@ -146,6 +148,12 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
       return respond(schedule(history.firedTimers.head))
     }
 
+    log.debug(s"checking signals for [${decisionTask.getStartedEventId}]")
+    val receivedSignals = history.events
+       .filter(event => event.event.isRight && event.event.right.get.startsWith("SIGNAL:"))
+       .map(_.event.right.get.drop(7))
+       .toSet
+
     log.debug(s"finding final states for [${decisionTask.getStartedEventId}]")
     val finalStates = mutable.Buffer[StepEvent[StepEnum]]()
     for (e <- history.events if e.event.isLeft) {
@@ -181,13 +189,16 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
             assert(thisFS.event.left.get.isInstanceOf[DefinedStep[StepEnum]], s"Did the workflow change? [${thisFS.event.left.get}] is not a DefinedStep")
             assert(definedStep == thisFS.event.left.get.asInstanceOf[DefinedStep[StepEnum]].withoutResume, s"Did the workflow change? [${thisFS.event.left.get}] != [$definedStep]")
             StepResult.deserialize(thisFS.result) match {
-              case Failed(m)                         => return respond(fail(s"Failed stage $definedStep", Failed(m).toString))
-              case Cancelled(m)                      => return respond(fail(s"Cancelled stage $definedStep", Cancelled(m).toString))
-              case InProgress(m)                     => return respond(waitRetry(definedStep))
-              case TimedOut(timeoutType, resumeInfo) =>
-                println("got: " + TimedOut(timeoutType, resumeInfo))
-                return respond(resume(definedStep.copy(stepInput = definedStep.stepInput.copy(resumeProgress = resumeInfo))))
-              case Success(m)                        => ()
+              case Failed(m)                                 => return respond(fail(s"Failed stage $definedStep", Failed(m).toString))
+              case Cancelled(m)                              => return respond(fail(s"Cancelled stage $definedStep", Cancelled(m).toString))
+              case InProgress(m)                             => return respond(waitRetry(definedStep))
+              case TimedOut(timeoutType, resumeInfo)         => return respond(resume(definedStep.copy(stepInput = definedStep.stepInput.copy(resumeProgress = resumeInfo))))
+              case Wait(m, durationSeconds, signal, signals) =>
+                val signals1: List[String] = signal :: signals
+                if (signals1.forall(receivedSignals.contains)) ()
+                else if (signals1.exists(history.expiredSignals.contains)) return respond(fail(s"Timed out waiting for signals at $definedStep", s"Signals expired [$signals1]"))
+                else return respond(waitForSignals(durationSeconds, signals1))
+              case Success(m)                                => ()
             }
           case sleepStep: SleepStep[StepEnum]     =>
             assert(thisFS.event.left.get.isInstanceOf[SleepStep[StepEnum]], s"Did the workflow change? [${thisFS.event.left.get}] is not a SleepStep")
@@ -233,6 +244,14 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
          .withTimerId(UUID.randomUUID().toString)
          .withControl(packTimer(retry.step.name, retry.stepInput))
          .withStartToFireTimeout(retry.step.inProgressTimerSeconds.toString)
+    )
+
+  private[this] def waitForSignals(durationSeconds: Int, signals: List[String]) =
+    new Decision().withDecisionType(DecisionType.StartTimer).withStartTimerDecisionAttributes(
+      new StartTimerDecisionAttributes()
+         .withTimerId(UUID.randomUUID().toString)
+         .withControl(s"WaitForSignals:" + signals.mkString(":"))
+         .withStartToFireTimeout(durationSeconds.toString)
     )
 
 }

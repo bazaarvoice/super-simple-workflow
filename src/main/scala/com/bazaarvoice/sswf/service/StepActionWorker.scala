@@ -100,7 +100,7 @@ class StepActionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep)
       }
     }
 
-    val result = workflowDefinition.act(task, wfInput, stepInput, heartbeatCallback)
+    val result = workflowDefinition.act(task, wfInput, stepInput, heartbeatCallback, activityTask.getWorkflowExecution)
 
     val response: RespondActivityTaskCompletedRequest =
       new RespondActivityTaskCompletedRequest()
