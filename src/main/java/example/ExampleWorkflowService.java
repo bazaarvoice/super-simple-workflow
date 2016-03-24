@@ -10,6 +10,7 @@ import com.amazonaws.services.simpleworkflow.model.RespondDecisionTaskCompletedR
 import com.amazonaws.services.simpleworkflow.model.WorkflowExecution;
 import com.amazonaws.services.simpleworkflow.model.WorkflowExecutionInfo;
 import com.bazaarvoice.sswf.Builders;
+import com.bazaarvoice.sswf.model.DefinedStep;
 import com.bazaarvoice.sswf.model.history.StepEvent;
 import com.bazaarvoice.sswf.model.history.StepsHistory;
 import com.bazaarvoice.sswf.service.StepActionWorker;
@@ -151,6 +152,7 @@ public class ExampleWorkflowService {
         // submit another one for profit
         startWorkflowForFunAndProfit(service);
 
+        boolean oneCancelled = false;
 
         while (true) {
             Thread.sleep(5000);
@@ -166,10 +168,20 @@ public class ExampleWorkflowService {
                     System.out.println("  input: " + execution.input());
                     System.out.println("  firedTimers: " + execution.firedTimers());
                     System.out.println("  events:");
+                    StepEvent<ExampleWorkflowSteps> lastEvent = null;
                     for (StepEvent<ExampleWorkflowSteps> event : execution.events()) {
                         System.out.println("    " + event);
+                        lastEvent = event;
                     }
                     System.out.println();
+
+                    if (lastEvent != null && !oneCancelled &&
+                        lastEvent.event().isLeft() && lastEvent.event().left().get() instanceof DefinedStep &&
+                        ((DefinedStep<ExampleWorkflowSteps>) lastEvent.event().left().get()).step() == ExampleWorkflowSteps.EXTRACT_STEP && Objects.equals(lastEvent.result(), "STARTED")) {
+                        System.out.println("Cancelling workflow!");
+                        service.workflowManagement.cancelWorkflowExecution(executionInfo.getExecution().getWorkflowId(), executionInfo.getExecution().getRunId());
+                        oneCancelled = true;
+                    }
                 }
             }
             if (openExecutions == 0) {

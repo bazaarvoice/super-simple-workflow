@@ -89,13 +89,10 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
   }
 
   def cancelWorkflowExecution(workflowId: String, runId: String) = {
-    swf.terminateWorkflowExecution(new TerminateWorkflowExecutionRequest()
+    swf.requestCancelWorkflowExecution(new RequestCancelWorkflowExecutionRequest()
        .withDomain(domain)
        .withWorkflowId(workflowId)
        .withRunId(runId)
-       .withChildPolicy(ChildPolicy.TERMINATE)
-       .withDetails("terminated by sswf WorkflowManagement")
-       .withReason("terminated by sswf WorkflowManagement")
     )
   }
 

@@ -46,6 +46,7 @@ object HistoryFactory {
     // track the cumulative step time
     var currentStep: ScheduledStep[StepEnum] = null
     var currentStepStart: DateTime = null
+    var workflowCancelRequested: Boolean = false
 
     var completedStepCounts = Map[StepEnum, Int]().withDefaultValue(0)
 
@@ -75,6 +76,10 @@ object HistoryFactory {
           case WorkflowExecutionTimedOut   =>
             val dt = new DateTime(h.getEventTimestamp)
             Some(StepEvent[StepEnum](workflowStartId, h.getEventId, Right(WorkflowEventToken), "TIMED_OUT", workflowStartTime, Some(dt), new Duration(workflowStartTime, dt)))
+          case WorkflowExecutionCancelRequested =>
+            // just flag the workflow as cancelled, and the decision worker will figure out what to do with it.
+            workflowCancelRequested = true
+            None
 
           // User-defined activity state transitions =======================================================================
           case ActivityTaskScheduled =>
@@ -269,7 +274,8 @@ object HistoryFactory {
       inputParser.deserialize(input),
       Collections.unmodifiableList(compactedHistory),
       Collections.unmodifiableSet(new util.HashSet[DefinedStep[StepEnum]](firedSteps)),
-      Collections.unmodifiableSet(expiredSignals)
+      Collections.unmodifiableSet(expiredSignals),
+      workflowCancelRequested
     )
   }
 

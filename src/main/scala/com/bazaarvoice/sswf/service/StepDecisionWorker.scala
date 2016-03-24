@@ -157,7 +157,6 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     log.debug(s"finding final states for [${decisionTask.getStartedEventId}]")
     val finalStates = mutable.Buffer[StepEvent[StepEnum]]()
     for (e <- history.events if e.event.isLeft) {
-      val result = StepResult.deserialize(e.result)
       if (finalStates.isEmpty) {
         finalStates.append(e)
       } else {
@@ -177,7 +176,9 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     log.debug(s"determining next step for [${decisionTask.getStartedEventId}]")
     val fsIt = finalStates.iterator
     for (step <- workflowDefinition.workflow(input)) {
-      if (!fsIt.hasNext) {
+      if (!fsIt.hasNext && history.cancelRequested) {
+        return respond(cancelWorkflow)
+      } else if (!fsIt.hasNext) {
         step match {
           case definedStep: DefinedStep[StepEnum] => return respond(schedule(definedStep))
           case sleepStep: SleepStep[StepEnum]     => return respond(scheduleSleep(sleepStep))
@@ -188,9 +189,11 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
           case definedStep: DefinedStep[StepEnum] =>
             assert(thisFS.event.left.get.isInstanceOf[DefinedStep[StepEnum]], s"Did the workflow change? [${thisFS.event.left.get}] is not a DefinedStep")
             assert(definedStep == thisFS.event.left.get.asInstanceOf[DefinedStep[StepEnum]].withoutResume, s"Did the workflow change? [${thisFS.event.left.get}] != [$definedStep]")
+
+            if (thisFS.result == "SCHEDULED" || thisFS.result == "STARTED") return respond(cancel(definedStep))
             StepResult.deserialize(thisFS.result) match {
               case Failed(m)                                 => return respond(fail(s"Failed stage $definedStep", Failed(m).toString))
-              case Cancelled(m)                              => return respond(fail(s"Cancelled stage $definedStep", Cancelled(m).toString))
+              case Cancelled(m)                              => return respond(cancelWorkflow)
               case InProgress(m)                             => return respond(waitRetry(definedStep))
               case TimedOut(timeoutType, resumeInfo)         => return respond(resume(definedStep.copy(stepInput = definedStep.stepInput.copy(resumeProgress = resumeInfo))))
               case Wait(m, durationSeconds, signal, signals) =>
@@ -213,6 +216,21 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
 
     respond(finish())
   }
+
+  private[this] def cancel(definedStep: DefinedStep[StepEnum]) =
+    new Decision()
+     .withDecisionType(DecisionType.RequestCancelActivityTask)
+     .withRequestCancelActivityTaskDecisionAttributes(
+       new RequestCancelActivityTaskDecisionAttributes()
+          .withActivityId(definedStep.step.name)
+     )
+
+  private[this] def cancelWorkflow: Decision =
+    new Decision()
+       .withDecisionType(DecisionType.CancelWorkflowExecution)
+       .withCancelWorkflowExecutionDecisionAttributes(
+         new CancelWorkflowExecutionDecisionAttributes()
+            .withDetails("Workflow Cancelled"))
 
   private[this] def getFullHistory(decisionTask: DecisionTask): (DecisionTask, List[HistoryEvent]) = {
     var events = decisionTask.getEvents.toList
