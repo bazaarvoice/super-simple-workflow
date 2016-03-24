@@ -151,8 +151,11 @@ public class ExampleWorkflowService {
         startWorkflowForFunAndProfit(service);
         // submit another one for profit
         startWorkflowForFunAndProfit(service);
+        // submit a third for profit
+        startWorkflowForFunAndProfit(service);
 
-        boolean oneCancelled = false;
+        boolean oneExtractCancelled = false;
+        boolean oneNonExtractCancelled = false;
 
         while (true) {
             Thread.sleep(5000);
@@ -175,12 +178,22 @@ public class ExampleWorkflowService {
                     }
                     System.out.println();
 
-                    if (lastEvent != null && !oneCancelled &&
+                    // This simulates an external user deciding to cancel the workflow while a long-running step is in progress.
+                    if (lastEvent != null && !oneExtractCancelled &&
                         lastEvent.event().isLeft() && lastEvent.event().left().get() instanceof DefinedStep &&
                         ((DefinedStep<ExampleWorkflowSteps>) lastEvent.event().left().get()).step() == ExampleWorkflowSteps.EXTRACT_STEP && Objects.equals(lastEvent.result(), "STARTED")) {
                         System.out.println("Cancelling workflow!");
                         service.workflowManagement.cancelWorkflowExecution(executionInfo.getExecution().getWorkflowId(), executionInfo.getExecution().getRunId());
-                        oneCancelled = true;
+                        oneExtractCancelled = true;
+                    }
+
+                    // This simulates an external user deciding to cancel the workflow in between steps or during a step that does not respect cancellation requests
+                    if (lastEvent != null && !oneNonExtractCancelled &&
+                        lastEvent.event().isLeft() && lastEvent.event().left().get() instanceof DefinedStep &&
+                        ((DefinedStep<ExampleWorkflowSteps>) lastEvent.event().left().get()).step() != ExampleWorkflowSteps.EXTRACT_STEP) {
+                        System.out.println("Cancelling workflow!");
+                        service.workflowManagement.cancelWorkflowExecution(executionInfo.getExecution().getWorkflowId(), executionInfo.getExecution().getRunId());
+                        oneNonExtractCancelled = true;
                     }
                 }
             }
