@@ -8,6 +8,7 @@ import com.bazaarvoice.sswf.model.ScheduledStep;
 import com.bazaarvoice.sswf.model.SleepStep;
 import com.bazaarvoice.sswf.model.StepInput;
 import com.bazaarvoice.sswf.model.history.StepsHistory;
+import com.bazaarvoice.sswf.model.result.Cancelled;
 import com.bazaarvoice.sswf.model.result.InProgress;
 import com.bazaarvoice.sswf.model.result.StepResult;
 import com.bazaarvoice.sswf.model.result.Success;
@@ -63,6 +64,11 @@ public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWork
         System.out.println("[" + workflow + "/" + run + "] Workflow(" + exampleWorkflowInput.getName() + ") Finished!!! " + message);
     }
 
+    @Override
+    public void onCancel(final String workflowId, final String runId, final ExampleWorkflowInput exampleWorkflowInput, final StepsHistory<ExampleWorkflowInput, ExampleWorkflowSteps> history, final String message) {
+        System.out.println("[" + workflowId + "/" + runId + "] Workflow(" + exampleWorkflowInput.getName() + ") Canceled!!! " + message);
+    }
+
     @Override public StepResult act(final ExampleWorkflowSteps step,
                                     final ExampleWorkflowInput exampleWorkflowInput,
                                     final StepInput stepInput,
@@ -70,9 +76,19 @@ public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWork
                                     final WorkflowExecution workflowExecution) {
         switch (step) {
             case EXTRACT_STEP:
-                // Note we're not required to cancel if this is true, it's just a request.
-                final boolean cancelRequested = heartbeatCallback.checkIn("just an example heartbeat checkin");
-                System.out.println("Cancellation requested: " + cancelRequested);
+                for (int i = 0; i < 10; i++) {
+                    // Note we're not required to cancel if this is true, it's just a request.
+                    final boolean cancelRequested = heartbeatCallback.checkIn("just an example heartbeat checkin");
+                    System.out.println("Cancellation requested: " + cancelRequested);
+                    if (cancelRequested) {
+                        return new Cancelled("We got cancelled");
+                    }
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
 
                 if (!Objects.equals(state.get(exampleWorkflowInput.getName()), "extract finished")) {
                     state.put(exampleWorkflowInput.getName(), "extract finished");

@@ -10,6 +10,7 @@ import com.amazonaws.services.simpleworkflow.model.RespondDecisionTaskCompletedR
 import com.amazonaws.services.simpleworkflow.model.WorkflowExecution;
 import com.amazonaws.services.simpleworkflow.model.WorkflowExecutionInfo;
 import com.bazaarvoice.sswf.Builders;
+import com.bazaarvoice.sswf.model.DefinedStep;
 import com.bazaarvoice.sswf.model.history.StepEvent;
 import com.bazaarvoice.sswf.model.history.StepsHistory;
 import com.bazaarvoice.sswf.service.StepActionWorker;
@@ -150,7 +151,11 @@ public class ExampleWorkflowService {
         startWorkflowForFunAndProfit(service);
         // submit another one for profit
         startWorkflowForFunAndProfit(service);
+        // submit a third for profit
+        startWorkflowForFunAndProfit(service);
 
+        boolean oneExtractCancelled = false;
+        boolean oneNonExtractCancelled = false;
 
         while (true) {
             Thread.sleep(5000);
@@ -166,10 +171,30 @@ public class ExampleWorkflowService {
                     System.out.println("  input: " + execution.input());
                     System.out.println("  firedTimers: " + execution.firedTimers());
                     System.out.println("  events:");
+                    StepEvent<ExampleWorkflowSteps> lastEvent = null;
                     for (StepEvent<ExampleWorkflowSteps> event : execution.events()) {
                         System.out.println("    " + event);
+                        lastEvent = event;
                     }
                     System.out.println();
+
+                    // This simulates an external user deciding to cancel the workflow while a long-running step is in progress.
+                    if (lastEvent != null && !oneExtractCancelled &&
+                        lastEvent.event().isLeft() && lastEvent.event().left().get() instanceof DefinedStep &&
+                        ((DefinedStep<ExampleWorkflowSteps>) lastEvent.event().left().get()).step() == ExampleWorkflowSteps.EXTRACT_STEP && Objects.equals(lastEvent.result(), "STARTED")) {
+                        System.out.println("Cancelling workflow!");
+                        service.workflowManagement.cancelWorkflowExecution(executionInfo.getExecution().getWorkflowId(), executionInfo.getExecution().getRunId());
+                        oneExtractCancelled = true;
+                    }
+
+                    // This simulates an external user deciding to cancel the workflow in between steps or during a step that does not respect cancellation requests
+                    if (lastEvent != null && !oneNonExtractCancelled &&
+                        lastEvent.event().isLeft() && lastEvent.event().left().get() instanceof DefinedStep &&
+                        ((DefinedStep<ExampleWorkflowSteps>) lastEvent.event().left().get()).step() != ExampleWorkflowSteps.EXTRACT_STEP) {
+                        System.out.println("Cancelling workflow!");
+                        service.workflowManagement.cancelWorkflowExecution(executionInfo.getExecution().getWorkflowId(), executionInfo.getExecution().getRunId());
+                        oneNonExtractCancelled = true;
+                    }
                 }
             }
             if (openExecutions == 0) {

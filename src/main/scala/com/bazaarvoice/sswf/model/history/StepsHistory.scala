@@ -36,5 +36,6 @@ case class StepEvent[StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](
 case class StepsHistory[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep) : ClassTag](input: SSWFInput,
                                                                                               events: java.util.List[StepEvent[StepEnum]],
                                                                                               firedTimers: java.util.Set[DefinedStep[StepEnum]],
-                                                                                              expiredSignals: java.util.Set[String]
+                                                                                              expiredSignals: java.util.Set[String],
+                                                                                              cancelRequested: Boolean
                                                                                              )
