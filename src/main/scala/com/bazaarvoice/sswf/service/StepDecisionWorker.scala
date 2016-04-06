@@ -143,6 +143,15 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
       new Decision().withDecisionType(DecisionType.FailWorkflowExecution).withFailWorkflowExecutionDecisionAttributes(attributes)
     }
 
+    def cancelWorkflow: Decision = {
+      workflowDefinition.onCancel(decisionTask.getWorkflowExecution.getWorkflowId, decisionTask.getWorkflowExecution.getRunId, input, history, "Workflow Cancelled")
+      new Decision()
+         .withDecisionType(DecisionType.CancelWorkflowExecution)
+         .withCancelWorkflowExecutionDecisionAttributes(
+           new CancelWorkflowExecutionDecisionAttributes()
+              .withDetails("Workflow Cancelled"))
+    }
+
     log.debug(s"checking for fired timers for [${decisionTask.getStartedEventId}]")
     if (history.firedTimers.nonEmpty) {
       return respond(schedule(history.firedTimers.head))
@@ -219,18 +228,11 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
 
   private[this] def cancel(definedStep: DefinedStep[StepEnum]) =
     new Decision()
-     .withDecisionType(DecisionType.RequestCancelActivityTask)
-     .withRequestCancelActivityTaskDecisionAttributes(
-       new RequestCancelActivityTaskDecisionAttributes()
-          .withActivityId(definedStep.step.name)
-     )
-
-  private[this] def cancelWorkflow: Decision =
-    new Decision()
-       .withDecisionType(DecisionType.CancelWorkflowExecution)
-       .withCancelWorkflowExecutionDecisionAttributes(
-         new CancelWorkflowExecutionDecisionAttributes()
-            .withDetails("Workflow Cancelled"))
+       .withDecisionType(DecisionType.RequestCancelActivityTask)
+       .withRequestCancelActivityTaskDecisionAttributes(
+         new RequestCancelActivityTaskDecisionAttributes()
+            .withActivityId(definedStep.step.name)
+       )
 
   private[this] def getFullHistory(decisionTask: DecisionTask): (DecisionTask, List[HistoryEvent]) = {
     var events = decisionTask.getEvents.toList
