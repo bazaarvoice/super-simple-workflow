@@ -104,7 +104,7 @@ class StepActionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep)
 
     val response: RespondActivityTaskCompletedRequest =
       new RespondActivityTaskCompletedRequest()
-         .withResult(StepResult.serialize(result))
+         .withResult(StepResult.serialize(result).take(32768))
          .withTaskToken(activityTask.getTaskToken)
     swf.respondActivityTaskCompleted(response)
     response

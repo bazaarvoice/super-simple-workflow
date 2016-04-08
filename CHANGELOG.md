@@ -4,6 +4,9 @@ All notable changes to this projected will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 This changelog follows [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## 2.2 - 2016-04-13
+* bugfix: limit the ActivityTaskCompleted result we send to SWF to 32768 characters
+
 ## 2.1 - 2016-04-06
 * bugfix: invoke WorkflowDefinition#onCancel when workflow is cancelled.
 
