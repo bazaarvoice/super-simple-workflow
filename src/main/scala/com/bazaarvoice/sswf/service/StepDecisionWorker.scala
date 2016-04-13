@@ -199,18 +199,22 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
             assert(thisFS.event.left.get.isInstanceOf[DefinedStep[StepEnum]], s"Did the workflow change? [${thisFS.event.left.get}] is not a DefinedStep")
             assert(definedStep == thisFS.event.left.get.asInstanceOf[DefinedStep[StepEnum]].withoutResume, s"Did the workflow change? [${thisFS.event.left.get}] != [$definedStep]")
 
-            if (thisFS.result == "SCHEDULED" || thisFS.result == "STARTED") return respond(cancel(definedStep))
-            StepResult.deserialize(thisFS.result) match {
-              case Failed(m)                                 => return respond(fail(s"Failed stage $definedStep", Failed(m).toString))
-              case Cancelled(m)                              => return respond(cancelWorkflow)
-              case InProgress(m)                             => return respond(waitRetry(definedStep))
-              case TimedOut(timeoutType, resumeInfo)         => return respond(resume(definedStep.copy(stepInput = definedStep.stepInput.copy(resumeProgress = resumeInfo))))
-              case Wait(m, durationSeconds, signal, signals) =>
-                val signals1: List[String] = signal :: signals
-                if (signals1.forall(receivedSignals.contains)) ()
-                else if (signals1.exists(history.expiredSignals.contains)) return respond(fail(s"Timed out waiting for signals at $definedStep", s"Signals expired [$signals1]"))
-                else return respond(waitForSignals(durationSeconds, signals1))
-              case Success(m)                                => ()
+            if (history.cancelRequested && thisFS.result == "SCHEDULED" || thisFS.result == "STARTED") {
+              return respond(cancel(definedStep))
+            } else {
+              StepResult.deserialize(thisFS.result) match {
+                case Failed(m)                                                 => return respond(fail(s"Failed stage $definedStep", Failed(m).toString))
+                case Cancelled(_)                                              => return respond(cancelWorkflow)
+                case InProgress(_) | TimedOut(_, _) if history.cancelRequested => return respond(cancelWorkflow)
+                case InProgress(_)                                             => return respond(waitRetry(definedStep))
+                case TimedOut(timeoutType, resumeInfo)                         => return respond(resume(definedStep.copy(stepInput = definedStep.stepInput.copy(resumeProgress = resumeInfo))))
+                case Wait(m, durationSeconds, signal, signals)                 =>
+                  val signals1: List[String] = signal :: signals
+                  if (signals1.forall(receivedSignals.contains)) ()
+                  else if (signals1.exists(history.expiredSignals.contains)) return respond(fail(s"Timed out waiting for signals at $definedStep", s"Signals expired [$signals1]"))
+                  else return respond(waitForSignals(durationSeconds, signals1))
+                case Success(m)                                                => ()
+              }
             }
           case sleepStep: SleepStep[StepEnum]     =>
             assert(thisFS.event.left.get.isInstanceOf[SleepStep[StepEnum]], s"Did the workflow change? [${thisFS.event.left.get}] is not a SleepStep")
