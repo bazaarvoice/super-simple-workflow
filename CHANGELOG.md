@@ -4,6 +4,14 @@ All notable changes to this projected will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 This changelog follows [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## 3.0 - 2016-04-14
+* bugfix: cancel workflows when steps return InProgress or time out
+* Colon (":") is now allowed in step response messages
+* Null byte ("\u0000") is now allowd in workflow and step inputs
+* StepActionWorker and WorkflowManagement new require a logger at construction.
+  The advantage is that they now log errors when they happen and also provide some debug logs
+* 2.2 bugfix was in error. Instead, require result to be less than 32768 before sending.
+
 ## 2.2 - 2016-04-13
 * bugfix: limit the ActivityTaskCompleted result we send to SWF to 32768 characters
 
