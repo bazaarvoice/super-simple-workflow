@@ -39,10 +39,11 @@ class CancelTest extends FlatSpec {
   private val domain: String = "sswf-tests"
   private val wf: String = "cancel-test"
   private val swf: AmazonSimpleWorkflowClient = new AmazonSimpleWorkflowClient()
-  val manager = new WorkflowManagement[String, TestSteps](domain, wf, "0.0", wf, swf, inputParser = parser)
+  private val logger: StdOutLogger = new StdOutLogger
+  val manager = new WorkflowManagement[String, TestSteps](domain, wf, "0.0", wf, swf, inputParser = parser, log = logger)
   val definition = new CancelTestWorkflowDef(rememberer)
-  val actor = new StepActionWorker[String, TestSteps](domain, wf, swf, parser, definition)
-  val decider = new StepDecisionWorker[String, TestSteps](domain, wf, swf, parser, definition, new StdOutLogger)
+  val actor = new StepActionWorker[String, TestSteps](domain, wf, swf, parser, definition, log = logger)
+  val decider = new StepDecisionWorker[String, TestSteps](domain, wf, swf, parser, definition, logger)
 
   "InProgress activities" should "get cancelled" in {
     manager.registerWorkflow()
@@ -57,7 +58,7 @@ class CancelTest extends FlatSpec {
       {
         val activityTask: ActivityTask = untilNotNull(actor.pollForWork())
         val work: RespondActivityTaskCompletedRequest = actor.doWork(activityTask)
-        assert(work.getResult === "IN_PROGRESS")
+        assert(work.getResult === StepResult.serialize(InProgress(None)))
       }
 
       manager.cancelWorkflowExecution(workflow.getWorkflowId, workflow.getRunId)

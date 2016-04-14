@@ -10,6 +10,7 @@ import com.amazonaws.services.simpleworkflow.model.RespondDecisionTaskCompletedR
 import com.amazonaws.services.simpleworkflow.model.WorkflowExecution;
 import com.amazonaws.services.simpleworkflow.model.WorkflowExecutionInfo;
 import com.bazaarvoice.sswf.Builders;
+import com.bazaarvoice.sswf.Logger;
 import com.bazaarvoice.sswf.model.DefinedStep;
 import com.bazaarvoice.sswf.model.history.StepEvent;
 import com.bazaarvoice.sswf.model.history.StepsHistory;
@@ -32,6 +33,7 @@ public class ExampleWorkflowService {
     final String workflow = "example-java-workflow";
     final String workflowVersion = "0.4";
     final String taskList = "my-machine";
+    final Logger logger = new StdOutLogger();
 
     final ExampleWorkflowInput.Parser inputParser = new ExampleWorkflowInput.Parser();
     final WorkflowManagement<ExampleWorkflowInput, ExampleWorkflowSteps> workflowManagement =
@@ -45,6 +47,7 @@ public class ExampleWorkflowService {
             .setWorkflowExecutionRetentionPeriodDays(30)
             .setStepScheduleToStartTimeoutSeconds(30)
             .setInputParser(inputParser)
+            .setLogger(logger)
             .build();
 
     final ExampleSignalHandler signalHandler = new ExampleSignalHandler(workflowManagement);
@@ -57,7 +60,7 @@ public class ExampleWorkflowService {
             .setSwf(swf)
             .setInputParser(inputParser)
             .setWorkflowDefinition(workflowDefinition)
-            .setLogger(new StdOutLogger())
+            .setLogger(logger)
             .build();
     final StepActionWorker<ExampleWorkflowInput, ExampleWorkflowSteps> actionWorker =
         new Builders.StepActionWorkerBuilder<>(ExampleWorkflowInput.class, ExampleWorkflowSteps.class)
@@ -66,6 +69,7 @@ public class ExampleWorkflowService {
             .setSwf(swf)
             .setInputParser(inputParser)
             .setWorkflowDefinition(workflowDefinition)
+            .setLogger(logger)
             .build();
 
     final ScheduledExecutorService decisionExecutor = Executors.newSingleThreadScheduledExecutor();

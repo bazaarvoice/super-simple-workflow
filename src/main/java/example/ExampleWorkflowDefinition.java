@@ -66,7 +66,7 @@ public class ExampleWorkflowDefinition implements WorkflowDefinition<ExampleWork
 
     @Override
     public void onCancel(final String workflowId, final String runId, final ExampleWorkflowInput exampleWorkflowInput, final StepsHistory<ExampleWorkflowInput, ExampleWorkflowSteps> history, final String message) {
-        System.out.println("[" + workflowId + "/" + runId + "] Workflow(" + exampleWorkflowInput.getName() + ") Canceled!!! " + message);
+        System.out.println("[" + workflowId + "/" + runId + "] Workflow(" + exampleWorkflowInput.getName() + ") Cancelled!!! " + message);
     }
 
     @Override public StepResult act(final ExampleWorkflowSteps step,

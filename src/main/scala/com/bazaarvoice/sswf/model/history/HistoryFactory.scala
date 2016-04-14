@@ -69,7 +69,7 @@ object HistoryFactory {
             Some(StepEvent[StepEnum](workflowStartId, h.getEventId, Right(WorkflowEventToken), "FAILED", workflowStartTime, Some(dt), new Duration(workflowStartTime, dt)))
           case WorkflowExecutionCanceled   =>
             val dt = new DateTime(h.getEventTimestamp)
-            Some(StepEvent[StepEnum](workflowStartId, h.getEventId, Right(WorkflowEventToken), "CANCELED", workflowStartTime, Some(dt), new Duration(workflowStartTime, dt)))
+            Some(StepEvent[StepEnum](workflowStartId, h.getEventId, Right(WorkflowEventToken), "CANCELLED", workflowStartTime, Some(dt), new Duration(workflowStartTime, dt)))
           case WorkflowExecutionTerminated =>
             val dt = new DateTime(h.getEventTimestamp)
             Some(StepEvent[StepEnum](workflowStartId, h.getEventId, Right(WorkflowEventToken), "TERMINATED", workflowStartTime, Some(dt), new Duration(workflowStartTime, dt)))
@@ -211,7 +211,7 @@ object HistoryFactory {
             None
 
           case TimerCanceled if startedTimers(h.getTimerCanceledEventAttributes.getTimerId).getTimerStartedEventAttributes.getControl.startsWith("WaitForSignals:") =>
-            // canceled timers are irrelevant for our purposes here.
+            // cancelled timers are irrelevant for our purposes here.
             None
 
           case WorkflowExecutionSignaled =>

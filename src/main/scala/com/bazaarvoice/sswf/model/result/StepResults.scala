@@ -1,5 +1,8 @@
 package com.bazaarvoice.sswf.model.result
 
+import com.fasterxml.jackson.databind.node.{ArrayNode, JsonNodeFactory}
+import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+
 import scala.collection.JavaConversions._
 
 /**
@@ -8,8 +11,6 @@ import scala.collection.JavaConversions._
   * @param message An optional text description of what happened in the step
   */
 sealed abstract class StepResult(message: Option[String]) {
-  require(!message.exists(_.contains(":")), "Message may not contain the ':' character.")
-
   def isSuccessful: Boolean
   def isInProgress: Boolean
   def isFinal: Boolean
@@ -34,9 +35,7 @@ case class InProgress(message: Option[String]) extends StepResult(message) {
 }
 
 case class Wait(message: Option[String], waitSeconds: Int, signal: String, signals: List[String]) extends StepResult(message) {
-  require(!signal.contains(":"), s"Signals may not contain the ':' character [$signal].")
-  require(!signals.exists(_.contains(":")), s"Signals may not contain the ':' character [${signals.mkString(",")}].")
-  require(waitSeconds>0, s"waitSeconds must be > 0 [$waitSeconds]")
+  require(waitSeconds > 0, s"waitSeconds must be > 0 [$waitSeconds]")
 
   def this(waitSeconds: Int, signal0: String) = this(None, waitSeconds, signal0, Nil)
   def this(waitSeconds: Int, signal0: String, signal1: String) = this(None, waitSeconds, signal0, List(signal1))
@@ -78,33 +77,60 @@ case class TimedOut(timeoutType: String, resumeInfo: Option[String]) extends Ste
 }
 
 object StepResult {
-  def deserialize(string: String): StepResult =
-    string.split(":").toList match {
-      case "SUCCESS" :: Nil => Success(None)
-      case "SUCCESS" :: msg :: Nil => Success(Some(msg))
-      case "IN_PROGRESS" :: Nil => InProgress(None)
-      case "IN_PROGRESS" :: msg :: Nil => InProgress(Some(msg))
-      case "WAIT" :: "" :: waitSeconds :: signal0 :: signals => Wait(None, waitSeconds.toInt, signal0, signals)
-      case "WAIT" :: msg :: waitSeconds :: signal0 :: signals => Wait(Some(msg), waitSeconds.toInt, signal0, signals)
-      case "FAILED" :: Nil => Failed(None)
-      case "FAILED" :: msg :: Nil => Failed(Some(msg))
-      case "CANCELLED" :: Nil => Cancelled(None)
-      case "CANCELLED" :: msg :: Nil => Cancelled(Some(msg))
-      case "TIMED_OUT" :: timeoutType :: resumeInfo => TimedOut(timeoutType, if (resumeInfo.forall(_.isEmpty)) None else Some(resumeInfo.mkString(":")))
-      case _ => throw new IllegalArgumentException(string)
+  val mapper = new ObjectMapper()
+  val json = JsonNodeFactory.instance
+
+  def deserialize(string: String): StepResult = {
+    val node = mapper.readTree(string)
+
+    node.get("result").asText() match {
+      case "SUCCESS"     => Success(Option(node.get("message")).map(_.asText()))
+      case "IN_PROGRESS" => InProgress(Option(node.get("message")).map(_.asText()))
+      case "WAIT"        =>
+        val signal0 :: signals = node.get("signals").elements().map(_.asText()).toList
+        Wait(Option(node.get("message")).map(_.asText()),
+          node.get("waitSeconds").asInt(),
+          signal0,
+          signals
+        )
+      case "FAILED"      => Failed(Option(node.get("message")).map(_.asText()))
+      case "CANCELLED"   => Cancelled(Option(node.get("message")).map(_.asText()))
+      case "TIMED_OUT"   =>
+        TimedOut(
+          node.get("timeoutType").asText(),
+          Option(node.get("resumeInfo")).map(_.asText())
+        )
+      case _             => throw new IllegalArgumentException(string)
+    }
+  }
+
+  def serialize(message: StepResult) = {
+    val node: JsonNode = message match {
+      case Success(Some(msg))                       => json.objectNode().put("result", "SUCCESS").put("message", msg)
+      case Success(None)                            => json.objectNode().put("result", "SUCCESS")
+      case InProgress(Some(msg))                    => json.objectNode().put("result", "IN_PROGRESS").put("message", msg)
+      case InProgress(None)                         => json.objectNode().put("result", "IN_PROGRESS")
+      case Wait(msg, waitSeconds, signal0, signals) =>
+        val signalsNode: ArrayNode = json.arrayNode().add(signal0)
+        signals.foreach(signalsNode.add)
+        val waitNode = json.objectNode()
+           .put("result", "WAIT")
+           .put("waitSeconds", waitSeconds)
+        msg.foreach(s => waitNode.put("message", s))
+        waitNode.set("signals", signalsNode)
+      case Failed(Some(msg))                        => json.objectNode().put("result", "FAILED").put("message", msg)
+      case Failed(None)                             => json.objectNode().put("result", "FAILED")
+      case Cancelled(Some(msg))                     => json.objectNode().put("result", "CANCELLED").put("message", msg)
+      case Cancelled(None)                          => json.objectNode().put("result", "CANCELLED")
+      case TimedOut(timeoutType, resumeInfo)        =>
+        val toNode = json.objectNode()
+           .put("result", "TIMED_OUT")
+           .put("timeoutType", timeoutType)
+        resumeInfo.foreach(s => toNode.put("resumeInfo", s))
+        toNode
     }
 
-  def serialize(message: StepResult) = message match {
-    case Success(Some(msg)) => "SUCCESS:" + msg
-    case Success(None) => "SUCCESS"
-    case InProgress(Some(msg)) => "IN_PROGRESS:" + msg
-    case InProgress(None) => "IN_PROGRESS"
-    case Wait(msg, waitSeconds, signal0, signals) => s"WAIT:${msg.getOrElse("")}:$waitSeconds:$signal0:${signals.mkString(":")}"
-    case Failed(Some(msg)) => "FAILED:" + msg
-    case Failed(None) => "FAILED"
-    case Cancelled(Some(msg)) => "CANCELLED:" + msg
-    case Cancelled(None) => "CANCELLED"
-    case TimedOut(timeoutType, resumeInfo) => s"TIMED_OUT:$timeoutType:${resumeInfo.getOrElse("")}"
+    mapper.writeValueAsString(node)
   }
 }
 

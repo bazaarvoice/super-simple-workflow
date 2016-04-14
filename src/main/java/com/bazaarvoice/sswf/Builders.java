@@ -14,6 +14,7 @@ public class Builders {
         private AmazonSimpleWorkflow swf;
         private InputParser<SSWFInput> inputParser;
         private WorkflowDefinition<SSWFInput, StepEnum> workflowDefinition;
+        private Logger logger;
 
         /**
          * Convenience chainable builder for {@link StepActionWorker}. You can also just call the constructor if that suits you better. The constructor
@@ -39,7 +40,8 @@ public class Builders {
             if (swf == null) throw new IllegalArgumentException("swf was null");
             if (inputParser == null) throw new IllegalArgumentException("inputParser was null");
             if (workflowDefinition == null) throw new IllegalArgumentException("workflowDefinition was null");
-            return new StepActionWorker<>(domain, taskList, swf, inputParser, workflowDefinition, ClassTag$.MODULE$.apply(stepEnumClass));
+            if (logger == null) throw new IllegalArgumentException("logger was null");
+            return new StepActionWorker<>(domain, taskList, swf, inputParser, workflowDefinition, logger, ClassTag$.MODULE$.apply(stepEnumClass));
         }
 
         /**
@@ -88,6 +90,15 @@ public class Builders {
          */
         public StepActionWorkerBuilder<SSWFInput, StepEnum> setWorkflowDefinition(WorkflowDefinition<SSWFInput, StepEnum> workflowDefinition) {
             this.workflowDefinition = workflowDefinition;
+            return this;
+        }
+
+        /**
+         * @param logger
+         * @return The builder
+         */
+        public StepActionWorkerBuilder<SSWFInput, StepEnum> setLogger(Logger logger) {
+            this.logger = logger;
             return this;
         }
     }
@@ -188,6 +199,7 @@ public class Builders {
         private int workflowExecutionTimeoutSeconds = 60 * 60 * 24 * 30; // default: one month
         private int workflowExecutionRetentionPeriodDays = 30;
         private int stepScheduleToStartTimeoutSeconds = 60;
+        private Logger logger;
 
         public WorkflowManagementBuilder(@SuppressWarnings("UnusedParameters") Class<SSWFInput> inputClass, Class<StepEnum> stepEnumClass) {
             // inputClass is an argument only to set the generic type (and to future-proof in case we ever need a classTag for it).
@@ -205,7 +217,8 @@ public class Builders {
             if (workflowExecutionRetentionPeriodDays <= 0) throw new IllegalArgumentException("workflowExecutionRetentionPeriodDays must be set > 0");
             if (stepScheduleToStartTimeoutSeconds <= 0) throw new IllegalArgumentException("stepScheduleToStartTimeoutSeconds must be set > 0");
             if (inputParser == null) throw new IllegalArgumentException("inputParser was null");
-            return new WorkflowManagement<SSWFInput, StepEnum>(domain, workflow, workflowVersion, taskList, swf, workflowExecutionTimeoutSeconds, workflowExecutionRetentionPeriodDays, stepScheduleToStartTimeoutSeconds, inputParser, ClassTag$.MODULE$.apply(stepEnumClass));
+            if (logger == null) throw new IllegalArgumentException("logger was null");
+            return new WorkflowManagement<SSWFInput, StepEnum>(domain, workflow, workflowVersion, taskList, swf, workflowExecutionTimeoutSeconds, workflowExecutionRetentionPeriodDays, stepScheduleToStartTimeoutSeconds, inputParser, logger, ClassTag$.MODULE$.apply(stepEnumClass));
         }
 
 
@@ -299,6 +312,15 @@ public class Builders {
          */
         public WorkflowManagementBuilder<SSWFInput, StepEnum> setStepScheduleToStartTimeoutSeconds(int stepScheduleToStartTimeoutSeconds) {
             this.stepScheduleToStartTimeoutSeconds = stepScheduleToStartTimeoutSeconds;
+            return this;
+        }
+
+        /**
+         * @param logger
+         * @return The builder
+         */
+        public WorkflowManagementBuilder<SSWFInput, StepEnum> setLogger(Logger logger) {
+            this.logger = logger;
             return this;
         }
     }

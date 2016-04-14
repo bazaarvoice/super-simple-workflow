@@ -5,7 +5,7 @@ import java.util.{Collections, Date}
 import com.amazonaws.services.simpleworkflow.model._
 import com.amazonaws.services.simpleworkflow.{AmazonSimpleWorkflow, model}
 import com.bazaarvoice.sswf.model.history.{HistoryFactory, StepsHistory}
-import com.bazaarvoice.sswf.{InputParser, WorkflowStep}
+import com.bazaarvoice.sswf.{InputParser, Logger, WorkflowStep}
 
 import scala.collection.JavaConversions.collectionAsScalaIterable
 import scala.reflect._
@@ -54,7 +54,8 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
                                                                                                workflowExecutionTimeoutSeconds: Int = 60 * 60 * 24 * 30, // default: one month
                                                                                                workflowExecutionRetentionPeriodDays: Int = 30,
                                                                                                stepScheduleToStartTimeoutSeconds: Int = 60 * 5,
-                                                                                               inputParser: InputParser[SSWFInput]) {
+                                                                                               inputParser: InputParser[SSWFInput],
+                                                                                               log: Logger) {
 
 
   /**
@@ -77,23 +78,36 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     */
   def startWorkflow(workflowId: String, input: SSWFInput): WorkflowExecution = {
     val inputString = inputParser.serialize(input)
-    val run = swf.startWorkflowExecution(new StartWorkflowExecutionRequest()
-       .withDomain(domain)
-       .withTaskList(new TaskList().withName(taskList))
-       .withWorkflowId(workflowId)
-       .withWorkflowType(new WorkflowType().withName(workflow).withVersion(workflowVersion))
-       .withInput(inputString)
-    )
+    val run =
+      try {
+        swf.startWorkflowExecution(new StartWorkflowExecutionRequest()
+           .withDomain(domain)
+           .withTaskList(new TaskList().withName(taskList))
+           .withWorkflowId(workflowId)
+           .withWorkflowType(new WorkflowType().withName(workflow).withVersion(workflowVersion))
+           .withInput(inputString)
+        )
+      } catch {
+        case t: Throwable =>
+          log.error(s"Exception starting workflow[$workflowId]", t)
+          throw t
+      }
 
     new WorkflowExecution().withRunId(run.getRunId).withWorkflowId(workflowId)
   }
 
-  def cancelWorkflowExecution(workflowId: String, runId: String) = {
-    swf.requestCancelWorkflowExecution(new RequestCancelWorkflowExecutionRequest()
-       .withDomain(domain)
-       .withWorkflowId(workflowId)
-       .withRunId(runId)
-    )
+  def cancelWorkflowExecution(workflowId: String, runId: String): Unit = {
+    try {
+      swf.requestCancelWorkflowExecution(new RequestCancelWorkflowExecutionRequest()
+         .withDomain(domain)
+         .withWorkflowId(workflowId)
+         .withRunId(runId)
+      )
+    } catch {
+      case t: Throwable =>
+        log.error(s"Exception cancelling workflow[$workflowId]", t)
+        throw t
+    }
   }
 
   /**
@@ -112,12 +126,18 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
   def signalWorkflow(signal: String) = {
     signal.split('|').toList match {
       case workflowId :: runId :: _ :: Nil =>
-        swf.signalWorkflowExecution(new SignalWorkflowExecutionRequest()
-           .withDomain(domain)
-           .withWorkflowId(workflowId)
-           .withRunId(runId)
-           .withSignalName(signal)
-        )
+        try {
+          swf.signalWorkflowExecution(new SignalWorkflowExecutionRequest()
+             .withDomain(domain)
+             .withWorkflowId(workflowId)
+             .withRunId(runId)
+             .withSignalName(signal)
+          )
+        } catch {
+          case t: Throwable =>
+            log.error(s"Exception signalling domain[$domain] workflow[$workflowId] run[$runId] signal[$signal]", t)
+            throw t
+        }
       case _                               =>
         throw new IllegalArgumentException(s"Incorrectly formatted signal [$signal]")
     }
@@ -210,6 +230,9 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
           case d: DomainAlreadyExistsException =>
             // race condition. ignore...
             ()
+          case t: Throwable =>
+            log.error(s"Unexpected exception registering domain[$domain]", t)
+            throw t
         }
     }
   }
@@ -235,6 +258,9 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
           case e: TypeAlreadyExistsException =>
             // race condition. ignore...
             ()
+          case t: Throwable =>
+            log.error(s"Unexpected exception registering domain[$domain] workflow[$workflow/$workflowVersion]", t)
+            throw t
         }
     }
   }
@@ -264,6 +290,7 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     def register(activity: StepEnum) {
       val version = util.stepToVersion(activity)
       if (!activities.contains((activity.name, version))) {
+        try {
         swf.registerActivityType(new RegisterActivityTypeRequest()
            .withName(activity.name)
            .withVersion(version)
@@ -274,6 +301,11 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
            .withDefaultTaskScheduleToCloseTimeout((stepScheduleToStartTimeoutSeconds + activity.startToFinishTimeoutSeconds).toString)
            .withDefaultTaskStartToCloseTimeout(activity.startToFinishTimeoutSeconds.toString)
         )
+        } catch {
+          case t: Throwable =>
+            log.error(s"Exception registering activity[${activity.name}/$version] domain[$domain]", t)
+            throw t
+        }
       }
     }
 

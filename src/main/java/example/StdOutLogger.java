@@ -10,6 +10,7 @@ public class StdOutLogger implements Logger {
 
     @Override public void warn(final Function0<String> message, final Throwable throwable) {
         System.out.println("WARN: "+message.apply());
+        throwable.printStackTrace();
     }
 
     @Override public void warn(final Function0<String> message) {
@@ -18,6 +19,7 @@ public class StdOutLogger implements Logger {
 
     @Override public void error(final Function0<String> message, final Throwable throwable) {
         System.out.println("ERROR: "+message.apply());
+        throwable.printStackTrace();
     }
 
     @Override public void error(final Function0<String> message) {
