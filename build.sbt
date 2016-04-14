@@ -2,7 +2,7 @@ name := "sswf"
 
 organization := "com.bazaarvoice"
 
-version := "3.0"
+version := "3.1-SNAPSHOT"
 
 scalaVersion := "2.11.7"
 
