@@ -120,15 +120,18 @@ class StepActionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep)
       catch {case t: Throwable => log.error(s"[${activityTask.getTaskToken}] Exception in act()", t); throw t}
     log.debug(s"[${activityTask.getTaskToken}] action result: $result")
 
+    val serializedStepResult: String = StepResult.serialize(result)
+    require(serializedStepResult.length <= 32768, s"The serialized step result was too long. " +
+       s"This is likely due to your message being too long or waiting on too many signals, etc.: [$serializedStepResult]")
     val response: RespondActivityTaskCompletedRequest =
       new RespondActivityTaskCompletedRequest()
-         .withResult(StepResult.serialize(result).take(32768))
+         .withResult(serializedStepResult)
          .withTaskToken(activityTask.getTaskToken)
 
     try {
       swf.respondActivityTaskCompleted(response)
     } catch {
-      case t:Throwable =>
+      case t: Throwable =>
         log.error(s"[${activityTask.getTaskToken}] Exception reporting action result to SWF", t)
         throw t
     }
