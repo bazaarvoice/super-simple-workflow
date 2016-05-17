@@ -4,6 +4,9 @@ All notable changes to this projected will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 This changelog follows [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## 3.1 - 2016-05-17
+* stop logging errors. Instead, use info when logging is appropriate and throw exceptions when that is more appropriate.
+
 ## 3.0 - 2016-04-14
 * bugfix: cancel workflows when steps return InProgress or time out
 * Colon (":") is now allowed in step response messages
