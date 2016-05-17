@@ -64,7 +64,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
   def pollForDecisionsToMake(): DecisionTask = {
     val decisionTask: DecisionTask =
       try {swf.pollForDecisionTask(new PollForDecisionTaskRequest().withDomain(domain).withTaskList(new TaskList().withName(taskList)).withIdentity(identity))}
-      catch {case t: Throwable => log.error("Exception polling for decision", t); throw t}
+      catch {case t: Throwable => log.info(s"Exception polling for decision: ${t.getClass}: ${t.getMessage}"); throw t}
     if (decisionTask.getTaskToken != null) {
       decisionTask
     } else {
@@ -87,14 +87,14 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     log.debug(s"get history for [${decisionTask.getStartedEventId}]")
     val completedRequest: RespondDecisionTaskCompletedRequest =
       try {innerMakeDecision(newDecisionTask, events)}
-      catch {case t: Throwable => log.error("Exception making a decision", t); throw t}
+      catch {case t: Throwable => log.info(s"Exception making a decision:  ${t.getClass}: ${t.getMessage}"); throw t}
     log.debug(s"made decision for [${decisionTask.getStartedEventId}]")
 
     try {
       swf.respondDecisionTaskCompleted(completedRequest)
     } catch {
       case t: Throwable =>
-        log.error("Exception reporting decision to SWF", t)
+        log.info(s"Exception reporting decision to SWF.  ${t.getClass}: ${t.getMessage}")
         throw t
     }
 

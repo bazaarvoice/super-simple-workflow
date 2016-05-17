@@ -64,7 +64,7 @@ class StepActionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep)
 
     val task =
       try {swf.pollForActivityTask(request)}
-      catch {case t: Throwable => log.error("Exception polling for action", t); throw t}
+      catch {case t: Throwable => log.info(s"Exception polling for action. ${t.getClass}: ${t.getMessage}"); throw t}
 
     if (task.getTaskToken != null) {
       task

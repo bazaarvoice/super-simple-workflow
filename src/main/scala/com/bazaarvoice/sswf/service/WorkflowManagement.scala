@@ -5,6 +5,7 @@ import java.util.{Collections, Date}
 import com.amazonaws.services.simpleworkflow.model._
 import com.amazonaws.services.simpleworkflow.{AmazonSimpleWorkflow, model}
 import com.bazaarvoice.sswf.model.history.{HistoryFactory, StepsHistory}
+import com.bazaarvoice.sswf.service.except.WorkflowManagementException
 import com.bazaarvoice.sswf.{InputParser, Logger, WorkflowStep}
 
 import scala.collection.JavaConversions.collectionAsScalaIterable
@@ -89,8 +90,7 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
         )
       } catch {
         case t: Throwable =>
-          log.error(s"Exception starting workflow[$workflowId]", t)
-          throw t
+          throw new WorkflowManagementException(s"Exception starting workflow[$workflowId]", t)
       }
 
     new WorkflowExecution().withRunId(run.getRunId).withWorkflowId(workflowId)
@@ -105,8 +105,7 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
       )
     } catch {
       case t: Throwable =>
-        log.error(s"Exception cancelling workflow[$workflowId]", t)
-        throw t
+        throw new WorkflowManagementException(s"Exception cancelling workflow[$workflowId]", t)
     }
   }
 
@@ -135,8 +134,7 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
           )
         } catch {
           case t: Throwable =>
-            log.error(s"Exception signalling domain[$domain] workflow[$workflowId] run[$runId] signal[$signal]", t)
-            throw t
+            throw new WorkflowManagementException(s"Exception signalling domain[$domain] workflow[$workflowId] run[$runId] signal[$signal]", t)
         }
       case _                               =>
         throw new IllegalArgumentException(s"Incorrectly formatted signal [$signal]")
@@ -230,9 +228,8 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
           case d: DomainAlreadyExistsException =>
             // race condition. ignore...
             ()
-          case t: Throwable =>
-            log.error(s"Unexpected exception registering domain[$domain]", t)
-            throw t
+          case t: Throwable                    =>
+            throw new WorkflowManagementException(s"Unexpected exception registering domain[$domain]", t)
         }
     }
   }
@@ -258,9 +255,8 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
           case e: TypeAlreadyExistsException =>
             // race condition. ignore...
             ()
-          case t: Throwable =>
-            log.error(s"Unexpected exception registering domain[$domain] workflow[$workflow/$workflowVersion]", t)
-            throw t
+          case t: Throwable                  =>
+            throw new WorkflowManagementException(s"Unexpected exception registering domain[$domain] workflow[$workflow/$workflowVersion]", t)
         }
     }
   }
@@ -291,20 +287,19 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
       val version = util.stepToVersion(activity)
       if (!activities.contains((activity.name, version))) {
         try {
-        swf.registerActivityType(new RegisterActivityTypeRequest()
-           .withName(activity.name)
-           .withVersion(version)
-           .withDomain(domain)
-           .withDefaultTaskList(new TaskList().withName(taskList))
-           .withDefaultTaskHeartbeatTimeout(activity.startToHeartbeatTimeoutSeconds.toString)
-           .withDefaultTaskScheduleToStartTimeout(stepScheduleToStartTimeoutSeconds.toString)
-           .withDefaultTaskScheduleToCloseTimeout((stepScheduleToStartTimeoutSeconds + activity.startToFinishTimeoutSeconds).toString)
-           .withDefaultTaskStartToCloseTimeout(activity.startToFinishTimeoutSeconds.toString)
-        )
+          swf.registerActivityType(new RegisterActivityTypeRequest()
+             .withName(activity.name)
+             .withVersion(version)
+             .withDomain(domain)
+             .withDefaultTaskList(new TaskList().withName(taskList))
+             .withDefaultTaskHeartbeatTimeout(activity.startToHeartbeatTimeoutSeconds.toString)
+             .withDefaultTaskScheduleToStartTimeout(stepScheduleToStartTimeoutSeconds.toString)
+             .withDefaultTaskScheduleToCloseTimeout((stepScheduleToStartTimeoutSeconds + activity.startToFinishTimeoutSeconds).toString)
+             .withDefaultTaskStartToCloseTimeout(activity.startToFinishTimeoutSeconds.toString)
+          )
         } catch {
           case t: Throwable =>
-            log.error(s"Exception registering activity[${activity.name}/$version] domain[$domain]", t)
-            throw t
+            throw new WorkflowManagementException(s"Exception registering activity[${activity.name}/$version] domain[$domain]", t)
         }
       }
     }
