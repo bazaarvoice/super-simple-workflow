@@ -4,6 +4,9 @@ All notable changes to this projected will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 This changelog follows [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## 3.2 - 2016-06-03
+* add ability to terminate workflows
+
 ## 3.1 - 2016-05-17
 * stop logging errors. Instead, use info when logging is appropriate and throw exceptions when that is more appropriate.
 
