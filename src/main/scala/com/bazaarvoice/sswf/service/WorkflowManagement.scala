@@ -96,6 +96,19 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     new WorkflowExecution().withRunId(run.getRunId).withWorkflowId(workflowId)
   }
 
+  def terminateWorkflowExecution(workflowId: String, runId: String): Unit = {
+    try {
+      swf.terminateWorkflowExecution(new TerminateWorkflowExecutionRequest()
+           .withDomain(domain)
+           .withWorkflowId(workflowId)
+           .withRunId(runId)
+      )
+    } catch {
+      case t: Throwable =>
+        throw new WorkflowManagementException(s"Exception terminating workflow[$workflowId] run[$runId]", t)
+    }
+  }
+
   def cancelWorkflowExecution(workflowId: String, runId: String): Unit = {
     try {
       swf.requestCancelWorkflowExecution(new RequestCancelWorkflowExecutionRequest()
@@ -105,7 +118,7 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
       )
     } catch {
       case t: Throwable =>
-        throw new WorkflowManagementException(s"Exception cancelling workflow[$workflowId]", t)
+        throw new WorkflowManagementException(s"Exception cancelling workflow[$workflowId] run[$runId]", t)
     }
   }
 
