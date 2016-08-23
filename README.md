@@ -158,7 +158,7 @@ sbt run
 # execute tests
 sbt test
 # to package
-sbt packageLocal #(etc...)
+sbt publishLocal #(etc...)
 ```
 
 Protip: Use a tilde (`sbt ~test`) to have sbt monitor the files and re-execute the task when anything changes.
@@ -169,5 +169,5 @@ To cross-build for scala 2.10 and scala 2.11 (note the '+'):
 ```
 sbt +compile
 # to package
-sbt +packageLocal #(etc...)
+sbt +publishLocal #(etc...)
 ```
