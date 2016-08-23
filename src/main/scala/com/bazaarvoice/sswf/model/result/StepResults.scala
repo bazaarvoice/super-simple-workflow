@@ -6,10 +6,10 @@ import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import scala.collection.JavaConversions._
 
 /**
-  * Messages to signal state transitions from action steps
-  *
-  * @param message An optional text description of what happened in the step
-  */
+ * Messages to signal state transitions from action steps
+ *
+ * @param message An optional text description of what happened in the step
+ */
 sealed abstract class StepResult(message: Option[String]) {
   def isSuccessful: Boolean
   def isInProgress: Boolean
@@ -25,9 +25,9 @@ case class Success(message: Option[String]) extends StepResult(message) {
   override def isFinal: Boolean = true
 }
 
-case class InProgress(message: Option[String]) extends StepResult(message) {
-  def this() = this(None)
-  def this(msg: String) = this(Some(msg))
+case class InProgress(message: Option[String], waitTimeSeconds: Option[Int]) extends StepResult(message) {
+  def this() = this(None, None)
+  def this(msg: String) = this(Some(msg), None)
 
   lazy val isSuccessful = false
   override def isInProgress: Boolean = true
@@ -85,7 +85,7 @@ object StepResult {
 
     node.get("result").asText() match {
       case "SUCCESS"     => Success(Option(node.get("message")).map(_.asText()))
-      case "IN_PROGRESS" => InProgress(Option(node.get("message")).map(_.asText()))
+      case "IN_PROGRESS" => InProgress(Option(node.get("message")).map(_.asText()), Option(node.get("waitTimeSeconds")).map(_.asInt()))
       case "WAIT"        =>
         val signal0 :: signals = node.get("signals").elements().map(_.asText()).toList
         Wait(Option(node.get("message")).map(_.asText()),
@@ -106,11 +106,13 @@ object StepResult {
 
   def serialize(message: StepResult) = {
     val node: JsonNode = message match {
-      case Success(Some(msg))                       => json.objectNode().put("result", "SUCCESS").put("message", msg)
-      case Success(None)                            => json.objectNode().put("result", "SUCCESS")
-      case InProgress(Some(msg))                    => json.objectNode().put("result", "IN_PROGRESS").put("message", msg)
-      case InProgress(None)                         => json.objectNode().put("result", "IN_PROGRESS")
-      case Wait(msg, waitSeconds, signal0, signals) =>
+      case Success(Some(msg))                           => json.objectNode().put("result", "SUCCESS").put("message", msg)
+      case Success(None)                                => json.objectNode().put("result", "SUCCESS")
+      case InProgress(Some(msg), Some(waitTimeSeconds)) => json.objectNode().put("result", "IN_PROGRESS").put("message", msg).put("waitTimeSeconds", waitTimeSeconds)
+      case InProgress(None, Some(waitTimeSeconds))      => json.objectNode().put("result", "IN_PROGRESS").put("waitTimeSeconds", waitTimeSeconds)
+      case InProgress(Some(msg), None)                  => json.objectNode().put("result", "IN_PROGRESS").put("message", msg)
+      case InProgress(None, None)                       => json.objectNode().put("result", "IN_PROGRESS")
+      case Wait(msg, waitSeconds, signal0, signals)     =>
         val signalsNode: ArrayNode = json.arrayNode().add(signal0)
         signals.foreach(signalsNode.add)
         val waitNode = json.objectNode()
@@ -118,11 +120,11 @@ object StepResult {
            .put("waitSeconds", waitSeconds)
         msg.foreach(s => waitNode.put("message", s))
         waitNode.set("signals", signalsNode)
-      case Failed(Some(msg))                        => json.objectNode().put("result", "FAILED").put("message", msg)
-      case Failed(None)                             => json.objectNode().put("result", "FAILED")
-      case Cancelled(Some(msg))                     => json.objectNode().put("result", "CANCELLED").put("message", msg)
-      case Cancelled(None)                          => json.objectNode().put("result", "CANCELLED")
-      case TimedOut(timeoutType, resumeInfo)        =>
+      case Failed(Some(msg))                            => json.objectNode().put("result", "FAILED").put("message", msg)
+      case Failed(None)                                 => json.objectNode().put("result", "FAILED")
+      case Cancelled(Some(msg))                         => json.objectNode().put("result", "CANCELLED").put("message", msg)
+      case Cancelled(None)                              => json.objectNode().put("result", "CANCELLED")
+      case TimedOut(timeoutType, resumeInfo)            =>
         val toNode = json.objectNode()
            .put("result", "TIMED_OUT")
            .put("timeoutType", timeoutType)

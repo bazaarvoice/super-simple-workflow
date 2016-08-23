@@ -18,7 +18,7 @@ class CancelTestWorkflowDef(rememberer: Rememberer) extends WorkflowDefinition[S
   override def onFail(workflowId: String, runId: String, input: String, history: StepsHistory[String, TestSteps], message: String): Unit = rememberer.remember("failed")
   override def act(step: TestSteps, input: String, stepInput: StepInput, heartbeatCallback: HeartbeatCallback, execution: WorkflowExecution): StepResult =
     step match {
-      case TestSteps.INPROGRESS_STEP => InProgress(None)
+      case TestSteps.INPROGRESS_STEP => InProgress(None, None)
     }
 }
 
@@ -58,7 +58,7 @@ class CancelTest extends FlatSpec {
       {
         val activityTask: ActivityTask = untilNotNull(actor.pollForWork())
         val work: RespondActivityTaskCompletedRequest = actor.doWork(activityTask)
-        assert(work.getResult === StepResult.serialize(InProgress(None)))
+        assert(work.getResult === StepResult.serialize(InProgress(None, None)))
       }
 
       manager.cancelWorkflowExecution(workflow.getWorkflowId, workflow.getRunId)

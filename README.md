@@ -153,8 +153,10 @@ build the project:
 
 ```
 sbt compile
-# to run
+# to run samples
 sbt run 
+# execute tests
+sbt test
 # to package
 sbt packageLocal #(etc...)
 ```
