@@ -17,6 +17,14 @@ trait WorkflowStep {
     */
   def startToHeartbeatTimeoutSeconds: Int
 
-  /** How long to wait before the next attempt when the step returns InProgress */
-  def inProgressTimerSeconds: Int
+  /** How long to wait before the next attempt when the step returns InProgress. */
+  def inProgressTimerSecondsFn: InProgressTimerFunction
+}
+
+trait InProgressTimerFunction {
+  def apply(invocationNum: Int, cumulativeStepDurationSeconds: Int): Int
+}
+
+class ConstantInProgressTimerFunction(secondsToWait: Int) extends InProgressTimerFunction {
+  override def apply(invocationNum: Int, cumulativeStepDurationSeconds: Int): Int = secondsToWait
 }

@@ -6,32 +6,26 @@ import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import scala.collection.JavaConversions._
 
 /**
- * Messages to signal state transitions from action steps
- *
- * @param message An optional text description of what happened in the step
- */
+  * Messages to signal state transitions from action steps
+  *
+  * @param message An optional text description of what happened in the step
+  */
 sealed abstract class StepResult(message: Option[String]) {
-  def isSuccessful: Boolean
   def isInProgress: Boolean
-  def isFinal: Boolean
 }
 
 case class Success(message: Option[String]) extends StepResult(message) {
   def this() = this(None)
   def this(msg: String) = this(Some(msg))
 
-  lazy val isSuccessful = true
   override def isInProgress: Boolean = false
-  override def isFinal: Boolean = true
 }
 
-case class InProgress(message: Option[String], waitTimeSeconds: Option[Int]) extends StepResult(message) {
-  def this() = this(None, None)
-  def this(msg: String) = this(Some(msg), None)
+case class InProgress(message: Option[String]) extends StepResult(message) {
+  def this() = this(None)
+  def this(msg: String) = this(Some(msg))
 
-  lazy val isSuccessful = false
   override def isInProgress: Boolean = true
-  override def isFinal: Boolean = false
 }
 
 case class Wait(message: Option[String], waitSeconds: Int, signal: String, signals: List[String]) extends StepResult(message) {
@@ -47,33 +41,25 @@ case class Wait(message: Option[String], waitSeconds: Int, signal: String, signa
   def this(waitSeconds: Int, signal0: String, signals: java.util.List[String]) = this(None, waitSeconds, signal0, signals.toList)
   def this(message: String, waitSeconds: Int, signal0: String, signals: java.util.List[String]) = this(Some(message), waitSeconds, signal0, signals.toList)
 
-  lazy val isSuccessful = false
   override def isInProgress: Boolean = true
-  override def isFinal: Boolean = true
 }
 
 case class Failed(message: Option[String]) extends StepResult(message) {
   def this() = this(None)
   def this(msg: String) = this(Some(msg))
 
-  lazy val isSuccessful = false
   override def isInProgress: Boolean = false
-  override def isFinal: Boolean = true
 }
 
 case class Cancelled(message: Option[String]) extends StepResult(message) {
   def this() = this(None)
   def this(msg: String) = this(Some(msg))
 
-  lazy val isSuccessful = false
   override def isInProgress: Boolean = false
-  override def isFinal: Boolean = true
 }
 
 case class TimedOut(timeoutType: String, resumeInfo: Option[String]) extends StepResult(Some(s"$timeoutType-$resumeInfo")) {
-  lazy val isSuccessful = false
-  override def isInProgress: Boolean = false
-  override def isFinal: Boolean = false
+  override def isInProgress: Boolean = true
 }
 
 object StepResult {
@@ -85,7 +71,7 @@ object StepResult {
 
     node.get("result").asText() match {
       case "SUCCESS"     => Success(Option(node.get("message")).map(_.asText()))
-      case "IN_PROGRESS" => InProgress(Option(node.get("message")).map(_.asText()), Option(node.get("waitTimeSeconds")).map(_.asInt()))
+      case "IN_PROGRESS" => InProgress(Option(node.get("message")).map(_.asText()))
       case "WAIT"        =>
         val signal0 :: signals = node.get("signals").elements().map(_.asText()).toList
         Wait(Option(node.get("message")).map(_.asText()),
@@ -106,13 +92,12 @@ object StepResult {
 
   def serialize(message: StepResult) = {
     val node: JsonNode = message match {
-      case Success(Some(msg))                           => json.objectNode().put("result", "SUCCESS").put("message", msg)
-      case Success(None)                                => json.objectNode().put("result", "SUCCESS")
-      case InProgress(Some(msg), Some(waitTimeSeconds)) => json.objectNode().put("result", "IN_PROGRESS").put("message", msg).put("waitTimeSeconds", waitTimeSeconds)
-      case InProgress(None, Some(waitTimeSeconds))      => json.objectNode().put("result", "IN_PROGRESS").put("waitTimeSeconds", waitTimeSeconds)
-      case InProgress(Some(msg), None)                  => json.objectNode().put("result", "IN_PROGRESS").put("message", msg)
-      case InProgress(None, None)                       => json.objectNode().put("result", "IN_PROGRESS")
-      case Wait(msg, waitSeconds, signal0, signals)     =>
+      case Success(Some(msg))    => json.objectNode().put("result", "SUCCESS").put("message", msg)
+      case Success(None)         => json.objectNode().put("result", "SUCCESS")
+      case InProgress(Some(msg)) => json.objectNode().put("result", "IN_PROGRESS").put("message", msg)
+      case InProgress(None)      => json.objectNode().put("result", "IN_PROGRESS")
+
+      case Wait(msg, waitSeconds, signal0, signals) =>
         val signalsNode: ArrayNode = json.arrayNode().add(signal0)
         signals.foreach(signalsNode.add)
         val waitNode = json.objectNode()
@@ -120,11 +105,11 @@ object StepResult {
            .put("waitSeconds", waitSeconds)
         msg.foreach(s => waitNode.put("message", s))
         waitNode.set("signals", signalsNode)
-      case Failed(Some(msg))                            => json.objectNode().put("result", "FAILED").put("message", msg)
-      case Failed(None)                                 => json.objectNode().put("result", "FAILED")
-      case Cancelled(Some(msg))                         => json.objectNode().put("result", "CANCELLED").put("message", msg)
-      case Cancelled(None)                              => json.objectNode().put("result", "CANCELLED")
-      case TimedOut(timeoutType, resumeInfo)            =>
+      case Failed(Some(msg))                        => json.objectNode().put("result", "FAILED").put("message", msg)
+      case Failed(None)                             => json.objectNode().put("result", "FAILED")
+      case Cancelled(Some(msg))                     => json.objectNode().put("result", "CANCELLED").put("message", msg)
+      case Cancelled(None)                          => json.objectNode().put("result", "CANCELLED")
+      case TimedOut(timeoutType, resumeInfo)        =>
         val toNode = json.objectNode()
            .put("result", "TIMED_OUT")
            .put("timeoutType", timeoutType)
