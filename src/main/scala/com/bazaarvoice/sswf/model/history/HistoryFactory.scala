@@ -123,14 +123,14 @@ object HistoryFactory {
 
             assert(scheduledStep == currentStep, s"id[$scheduledStep] != currentStep[$currentStep]")
 
-            val totalActivityTime: Duration = new Duration(currentStepStart, endTime)
+            val stepEventResult = Some(StepEvent[StepEnum](eventId, h.getEventId, Left(scheduledStep), StepResult.serialize(result), eventStart, Some(endTime), new Duration(currentStepStart,
+              endTime), invocations))
 
             if (!result.isInProgress) {
               currentStep = null
               currentStepStart = null
             }
-            Some(StepEvent[StepEnum](eventId, h.getEventId, Left(scheduledStep), StepResult.serialize(result), eventStart, Some(endTime), totalActivityTime, invocations))
-
+            stepEventResult
 
           case ActivityTaskTimedOut =>
             steps.put(h.getEventId, h)
@@ -160,9 +160,14 @@ object HistoryFactory {
             val scheduledStep: ScheduledStep[StepEnum] = scheduledSteps(eventId)
 
             assert(scheduledStep == currentStep, s"id[$scheduledStep] != currentStep[$currentStep]")
+
+            val stepEventResult = Some(StepEvent[StepEnum](eventId, h.getEventId, Left(scheduledStep), StepResult.serialize(result), workflowStartTime, Some(endTime), new Duration(currentStepStart,
+              endTime), invocations))
+
             currentStep = null
             currentStepStart = null
-            Some(StepEvent[StepEnum](eventId, h.getEventId, Left(scheduledStep), StepResult.serialize(result), workflowStartTime, Some(endTime), new Duration(currentStepStart, endTime), invocations))
+
+            stepEventResult
 
           // Special activity state transitions =======================================================================
 
@@ -174,6 +179,7 @@ object HistoryFactory {
             if (currentStep != scheduledStep) {
               currentStep = scheduledStep
               currentStepStart = new DateTime(h.getEventTimestamp)
+              invocations = 0
             }
             startedTimers.put(timerId, h)
 

@@ -3,7 +3,7 @@ package com.bazaarvoice.sswf;
 public enum TestSteps implements WorkflowStep {
     INPROGRESS_STEP(120, 120) {
         @Override public InProgressTimerFunction inProgressTimerSecondsFn() {
-            return (invocationNum, cumulativeStepDurationSeconds) -> Math.min(10 * invocationNum, 100);
+            return (invocationNum, cumulativeStepDurationSeconds) -> 1;
         }
     };
 
