@@ -118,7 +118,7 @@ object HistoryFactory {
             val scheduledStep = scheduledSteps(eventId).asInstanceOf[DefinedStep[StepEnum]]
             val result: StepResult = StepResult.deserialize(attributes.getResult)
             val eventStart: DateTime = new DateTime(steps(attributes.getStartedEventId).getEventTimestamp)
-            val endTime: DateTime = new DateTime(h.getEventTimestamp.getTime)
+            val endTime: DateTime = new DateTime(h.getEventTimestamp)
             completedStepCounts = completedStepCounts + (scheduledStep.step -> (completedStepCounts(scheduledStep.step) + 1))
 
             assert(scheduledStep == currentStep, s"id[$scheduledStep] != currentStep[$currentStep]")
@@ -129,6 +129,7 @@ object HistoryFactory {
             if (!result.isInProgress) {
               currentStep = null
               currentStepStart = null
+              invocations = 0
             }
             stepEventResult
 

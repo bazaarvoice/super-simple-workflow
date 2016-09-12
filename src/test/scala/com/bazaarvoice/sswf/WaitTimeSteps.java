@@ -19,7 +19,6 @@ public enum WaitTimeSteps implements WorkflowStep {
     @Override public int startToHeartbeatTimeoutSeconds() { return startToHeartbeatTimeoutSeconds; }
 
     @Override public InProgressTimerFunction inProgressTimerSecondsFn() {
-
         return (invocationNum, cumulativeStepDurationSeconds) -> Math.min(invocationNum * 2, 4);
     }
 

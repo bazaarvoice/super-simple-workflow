@@ -23,7 +23,7 @@ class CancelTestWorkflowDef(rememberer: Rememberer) extends WorkflowDefinition[S
 }
 
 class Rememberer {
-  var toRemember: String = _
+  var toRemember: String = null
   def remember(s: String): Unit = {
     toRemember = s
   }
