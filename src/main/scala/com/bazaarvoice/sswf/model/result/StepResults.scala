@@ -11,27 +11,21 @@ import scala.collection.JavaConversions._
   * @param message An optional text description of what happened in the step
   */
 sealed abstract class StepResult(message: Option[String]) {
-  def isSuccessful: Boolean
   def isInProgress: Boolean
-  def isFinal: Boolean
 }
 
 case class Success(message: Option[String]) extends StepResult(message) {
   def this() = this(None)
   def this(msg: String) = this(Some(msg))
 
-  lazy val isSuccessful = true
   override def isInProgress: Boolean = false
-  override def isFinal: Boolean = true
 }
 
 case class InProgress(message: Option[String]) extends StepResult(message) {
   def this() = this(None)
   def this(msg: String) = this(Some(msg))
 
-  lazy val isSuccessful = false
   override def isInProgress: Boolean = true
-  override def isFinal: Boolean = false
 }
 
 case class Wait(message: Option[String], waitSeconds: Int, signal: String, signals: List[String]) extends StepResult(message) {
@@ -47,33 +41,25 @@ case class Wait(message: Option[String], waitSeconds: Int, signal: String, signa
   def this(waitSeconds: Int, signal0: String, signals: java.util.List[String]) = this(None, waitSeconds, signal0, signals.toList)
   def this(message: String, waitSeconds: Int, signal0: String, signals: java.util.List[String]) = this(Some(message), waitSeconds, signal0, signals.toList)
 
-  lazy val isSuccessful = false
   override def isInProgress: Boolean = true
-  override def isFinal: Boolean = true
 }
 
 case class Failed(message: Option[String]) extends StepResult(message) {
   def this() = this(None)
   def this(msg: String) = this(Some(msg))
 
-  lazy val isSuccessful = false
   override def isInProgress: Boolean = false
-  override def isFinal: Boolean = true
 }
 
 case class Cancelled(message: Option[String]) extends StepResult(message) {
   def this() = this(None)
   def this(msg: String) = this(Some(msg))
 
-  lazy val isSuccessful = false
   override def isInProgress: Boolean = false
-  override def isFinal: Boolean = true
 }
 
 case class TimedOut(timeoutType: String, resumeInfo: Option[String]) extends StepResult(Some(s"$timeoutType-$resumeInfo")) {
-  lazy val isSuccessful = false
-  override def isInProgress: Boolean = false
-  override def isFinal: Boolean = false
+  override def isInProgress: Boolean = true
 }
 
 object StepResult {
@@ -106,10 +92,11 @@ object StepResult {
 
   def serialize(message: StepResult) = {
     val node: JsonNode = message match {
-      case Success(Some(msg))                       => json.objectNode().put("result", "SUCCESS").put("message", msg)
-      case Success(None)                            => json.objectNode().put("result", "SUCCESS")
-      case InProgress(Some(msg))                    => json.objectNode().put("result", "IN_PROGRESS").put("message", msg)
-      case InProgress(None)                         => json.objectNode().put("result", "IN_PROGRESS")
+      case Success(Some(msg))    => json.objectNode().put("result", "SUCCESS").put("message", msg)
+      case Success(None)         => json.objectNode().put("result", "SUCCESS")
+      case InProgress(Some(msg)) => json.objectNode().put("result", "IN_PROGRESS").put("message", msg)
+      case InProgress(None)      => json.objectNode().put("result", "IN_PROGRESS")
+
       case Wait(msg, waitSeconds, signal0, signals) =>
         val signalsNode: ArrayNode = json.arrayNode().add(signal0)
         signals.foreach(signalsNode.add)

@@ -216,7 +216,8 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
                 case Failed(m)                                                 => return respond(fail(s"Failed stage $definedStep", Failed(m).toString))
                 case Cancelled(_)                                              => return respond(cancelWorkflow)
                 case InProgress(_) | TimedOut(_, _) if history.cancelRequested => return respond(cancelWorkflow)
-                case InProgress(_)                                             => return respond(waitRetry(definedStep))
+                case InProgress(message)                                       => return respond(waitRetry(definedStep, thisFS.invocations, thisFS.cumulativeActivityTime
+                   .getStandardSeconds.toInt))
                 case TimedOut(timeoutType, resumeInfo)                         => return respond(resume(definedStep.copy(stepInput = definedStep.stepInput.copy(resumeProgress = resumeInfo))))
                 case Wait(m, durationSeconds, signal, signals)                 =>
                   val signals1: List[String] = signal :: signals
@@ -272,12 +273,12 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
          .withStartToFireTimeout(step.sleepSeconds.toString)
     )
 
-  private[this] def waitRetry(retry: DefinedStep[StepEnum]) =
+  private[this] def waitRetry(retry: DefinedStep[StepEnum], stepInvocations: Int, cumulativeStepDurationSeconds: Int) =
     new Decision().withDecisionType(DecisionType.StartTimer).withStartTimerDecisionAttributes(
       new StartTimerDecisionAttributes()
          .withTimerId(UUID.randomUUID().toString)
          .withControl(packTimer(retry.step.name, retry.stepInput))
-         .withStartToFireTimeout(retry.step.inProgressTimerSeconds.toString)
+         .withStartToFireTimeout(retry.step.inProgressTimerSecondsFn(stepInvocations, cumulativeStepDurationSeconds).toString)
     )
 
   private[this] def waitForSignals(durationSeconds: Int, signals: List[String]) =
