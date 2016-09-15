@@ -27,6 +27,29 @@ Working example
 Run the example with `sbt run` or through IDEA by running `ExampleWorkflowService`.
 Note that you must have AWS credentials in your env: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_KEY`.
 
+Your AWS credentials must have access to at least the following [SWF actions](http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-api-by-category.html):
+
+- PollForActivityTask
+- RespondActivityTaskCompleted
+- RecordActivityTaskHeartbeat
+- PollForDecisionTask
+- RespondDecisionTaskCompleted
+- RequestCancelWorkflowExecution
+- StartWorkflowExecution
+- SignalWorkflowExecution
+- TerminateWorkflowExecution
+- RegisterActivityType
+- RegisterWorkflowType
+- RegisterDomain
+- RequestCancelWorkflowExecution
+- TerminateWorkflowExecution
+- ListActivityTypes
+- DescribeWorkflowType
+- ListOpenWorkflowExecutions
+- ListClosedWorkflowExecutions
+- GetWorkflowExecutionHistory
+- DescribeDomain
+
 The example code is in `src/main/java/example`. This is everything you'll need to do to get up and running!
 
 
