@@ -4,6 +4,9 @@ All notable changes to this projected will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 This changelog follows [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## 4.0 - 2016-09-15
+* change in-progress wait timer from scalar to function
+
 ## 3.2 - 2016-06-03
 * add ability to terminate workflows
 
