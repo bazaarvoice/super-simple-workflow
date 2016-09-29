@@ -90,7 +90,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
         innerMakeDecision(newDecisionTask, events)
       }
       catch {
-        case t: Throwable => log.info(s"Exception making a decision:  ${t.getClass}: ${t.getMessage}"); throw t
+        case t: Throwable => log.error(s"Exception making a decision:  ${t.getClass}: ${t.getMessage}"); throw t
       }
     log.debug(s"made decision for [${decisionTask.getStartedEventId}]")
 
@@ -214,7 +214,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
         step match {
           case definedStep: DefinedStep[StepEnum] =>
             assert(thisFS.event.left.get.isInstanceOf[DefinedStep[StepEnum]], s"Did the workflow change? [${thisFS.event.left.get}] is not a DefinedStep")
-            assert(definedStep isSameStepAs thisFS.event.left.get.asInstanceOf[DefinedStep[StepEnum]], s"Did the workflow change? [${thisFS.event.left.get}] isSameStepAs [$definedStep]")
+            assert(definedStep isSameStepAs thisFS.event.left.get.asInstanceOf[DefinedStep[StepEnum]], s"Did the workflow change? [${thisFS.event.left.get}] !isSameStepAs [$definedStep]")
 
             if (history.cancelRequested && thisFS.result == "SCHEDULED" || thisFS.result == "STARTED") {
               return respond(cancel(definedStep))
