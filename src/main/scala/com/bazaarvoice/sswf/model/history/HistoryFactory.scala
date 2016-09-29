@@ -167,6 +167,7 @@ object HistoryFactory {
 
             currentStep = null
             currentStepStart = null
+            invocations = 0
 
             stepEventResult
 
@@ -177,14 +178,14 @@ object HistoryFactory {
             val attributes = h.getTimerStartedEventAttributes
             val timerId = attributes.getTimerId
             val scheduledStep = SleepStep[StepEnum](attributes.getStartToFireTimeout.toInt)
-            if (currentStep != scheduledStep) {
+            if (!(scheduledStep isSameStepAs currentStep)) {
               currentStep = scheduledStep
               currentStepStart = new DateTime(h.getEventTimestamp)
               invocations = 1
             }
             startedTimers.put(timerId, h)
 
-            assert(scheduledStep == currentStep, s"scheduledStep[$scheduledStep] != currentStep[$currentStep]")
+            assert(scheduledStep isSameStepAs currentStep, s"scheduledStep[$scheduledStep] != currentStep[$currentStep]")
             Some(StepEvent[StepEnum](eventId, eventId, Left(scheduledStep), "STARTED", currentStepStart, None, Duration.ZERO, invocations))
 
           case TimerFired if startedTimers(h.getTimerFiredEventAttributes.getTimerId).getTimerStartedEventAttributes.getControl == "SleepStep" =>

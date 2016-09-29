@@ -187,13 +187,13 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
       } else {
         val previousFinalState: StepEvent[StepEnum] = finalStates.last
         (previousFinalState.event.left.get, e.event.left.get) match {
-          case (lastDS: DefinedStep[StepEnum], eventDS: DefinedStep[StepEnum]) if lastDS.withoutResume == eventDS.withoutResume && StepResult.deserialize(previousFinalState.result).isInProgress =>
+          case (lastDS: DefinedStep[StepEnum], eventDS: DefinedStep[StepEnum]) if (lastDS isSameStepAs eventDS) && StepResult.deserialize(previousFinalState.result).isInProgress =>
             finalStates.remove(finalStates.length - 1)
             finalStates.append(e)
-          case (lastSS: SleepStep[StepEnum], eventSS: SleepStep[StepEnum]) if lastSS == eventSS && StepResult.deserialize(previousFinalState.result).isInProgress                                 =>
+          case (lastSS: SleepStep[StepEnum], eventSS: SleepStep[StepEnum]) if (lastSS isSameStepAs eventSS) && StepResult.deserialize(previousFinalState.result).isInProgress     =>
             finalStates.remove(finalStates.length - 1)
             finalStates.append(e)
-          case _                                                                                                                                                                                  =>
+          case _                                                                                                                                                                  =>
             finalStates.append(e)
         }
       }
@@ -214,7 +214,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
         step match {
           case definedStep: DefinedStep[StepEnum] =>
             assert(thisFS.event.left.get.isInstanceOf[DefinedStep[StepEnum]], s"Did the workflow change? [${thisFS.event.left.get}] is not a DefinedStep")
-            assert(definedStep == thisFS.event.left.get.asInstanceOf[DefinedStep[StepEnum]].withoutResume, s"Did the workflow change? [${thisFS.event.left.get}] != [$definedStep]")
+            assert(definedStep isSameStepAs thisFS.event.left.get.asInstanceOf[DefinedStep[StepEnum]], s"Did the workflow change? [${thisFS.event.left.get}] isSameStepAs [$definedStep]")
 
             if (history.cancelRequested && thisFS.result == "SCHEDULED" || thisFS.result == "STARTED") {
               return respond(cancel(definedStep))
