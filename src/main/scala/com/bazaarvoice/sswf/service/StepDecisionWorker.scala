@@ -86,8 +86,12 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     val (newDecisionTask, events) = getFullHistory(decisionTask)
     log.debug(s"get history for [${decisionTask.getStartedEventId}]")
     val completedRequest: RespondDecisionTaskCompletedRequest =
-      try {innerMakeDecision(newDecisionTask, events)}
-      catch {case t: Throwable => log.info(s"Exception making a decision:  ${t.getClass}: ${t.getMessage}"); throw t}
+      try {
+        innerMakeDecision(newDecisionTask, events)
+      }
+      catch {
+        case t: Throwable => log.error(s"Exception making a decision:  ${t.getClass}: ${t.getMessage}"); throw t
+      }
     log.debug(s"made decision for [${decisionTask.getStartedEventId}]")
 
     try {
@@ -101,7 +105,9 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     completedRequest
   }
 
+
   private[this] def innerMakeDecision(decisionTask: DecisionTask, events: List[HistoryEvent]): RespondDecisionTaskCompletedRequest = {
+
     log.debug(s"starting innerMakeDecision for [${decisionTask.getStartedEventId}]")
     val history: StepsHistory[SSWFInput, StepEnum] = HistoryFactory.from(events, inputParser)
     log.debug(s"got history for [${decisionTask.getStartedEventId}]")
@@ -179,14 +185,15 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
       if (finalStates.isEmpty) {
         finalStates.append(e)
       } else {
-        (finalStates.last.event.left.get, e.event.left.get) match {
-          case (lastDS: DefinedStep[StepEnum], eventDS: DefinedStep[StepEnum]) if lastDS.withoutResume == eventDS.withoutResume =>
+        val previousFinalState: StepEvent[StepEnum] = finalStates.last
+        (previousFinalState.event.left.get, e.event.left.get) match {
+          case (lastDS: DefinedStep[StepEnum], eventDS: DefinedStep[StepEnum]) if (lastDS isSameStepAs eventDS) && StepResult.deserialize(previousFinalState.result).isInProgress =>
             finalStates.remove(finalStates.length - 1)
             finalStates.append(e)
-          case (lastSS: SleepStep[StepEnum], eventSS: SleepStep[StepEnum]) if lastSS == eventSS                                 =>
+          case (lastSS: SleepStep[StepEnum], eventSS: SleepStep[StepEnum]) if (lastSS isSameStepAs eventSS) && StepResult.deserialize(previousFinalState.result).isInProgress     =>
             finalStates.remove(finalStates.length - 1)
             finalStates.append(e)
-          case _                                                                                                                =>
+          case _                                                                                                                                                                  =>
             finalStates.append(e)
         }
       }
@@ -207,7 +214,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
         step match {
           case definedStep: DefinedStep[StepEnum] =>
             assert(thisFS.event.left.get.isInstanceOf[DefinedStep[StepEnum]], s"Did the workflow change? [${thisFS.event.left.get}] is not a DefinedStep")
-            assert(definedStep == thisFS.event.left.get.asInstanceOf[DefinedStep[StepEnum]].withoutResume, s"Did the workflow change? [${thisFS.event.left.get}] != [$definedStep]")
+            assert(definedStep isSameStepAs thisFS.event.left.get.asInstanceOf[DefinedStep[StepEnum]], s"Did the workflow change? [${thisFS.event.left.get}] !isSameStepAs [$definedStep]")
 
             if (history.cancelRequested && thisFS.result == "SCHEDULED" || thisFS.result == "STARTED") {
               return respond(cancel(definedStep))
