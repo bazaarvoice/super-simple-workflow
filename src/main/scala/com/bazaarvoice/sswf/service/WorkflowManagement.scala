@@ -99,9 +99,9 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
   def terminateWorkflowExecution(workflowId: String, runId: String): Unit = {
     try {
       swf.terminateWorkflowExecution(new TerminateWorkflowExecutionRequest()
-           .withDomain(domain)
-           .withWorkflowId(workflowId)
-           .withRunId(runId)
+         .withDomain(domain)
+         .withWorkflowId(workflowId)
+         .withRunId(runId)
       )
     } catch {
       case t: Throwable =>
@@ -127,10 +127,11 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     *
     * The format of the signal is publicly documented as 3 pipe-delimited fields with workflowId,runId, and a unique signal name.
     *
+    * WARNING: this format is public, so if you change it, you need to update the docs.
+    *
     * @return a signal token for passing to Wait and for calling signalWorkflow with.
     */
-  def generateSignal(workflowId: String, runId: String) =
-    workflowId + "|" + runId + "|" + new Random().nextLong().toHexString // WARNING: this format is public, so if you change it, you need to update the docs.
+  def generateSignal(workflowId: String, runId: String) = workflowId + "|" + runId + "|" + new Random().nextLong().toHexString
 
   /**
     * Use this method to send a previously generated signal to the workflow that generated it.
@@ -155,46 +156,72 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
   }
 
   /**
-    * List all the executions for this domain and workflow within the time window. (regardless of version)
+    * List open executions for this domain and workflow within the time window. (regardless of version)
     *
     * @param from Start time to search
     * @param to   End time to search
     * @return an unmodifiable list of matching executions
     */
-  def listExecutions(from: Date, to: Date): java.util.List[WorkflowExecutionInfo] = {
+  def listOpenExecutions(from: Date, to: Date): java.util.List[WorkflowExecutionInfo] = {
     val openRequest: ListOpenWorkflowExecutionsRequest = new ListOpenWorkflowExecutionsRequest()
        .withDomain(domain)
        .withTypeFilter(new WorkflowTypeFilter().withName(workflow))
        .withStartTimeFilter(new ExecutionTimeFilter().withLatestDate(to).withOldestDate(from))
 
-    val closedRequest: ListClosedWorkflowExecutionsRequest = new ListClosedWorkflowExecutionsRequest()
-       .withDomain(domain)
-       .withTypeFilter(new WorkflowTypeFilter().withName(workflow))
-       .withStartTimeFilter(new ExecutionTimeFilter().withLatestDate(to).withOldestDate(from))
-
-    innerListExecutions(openRequest, closedRequest)
+    innerListOpenExecutions(openRequest)
   }
 
   /**
-    * List all the executions for this domain, workflow, and workflowId within the time window. (regardless of version)
+    * List open executions for this domain, workflow, and workflowId within the time window. (regardless of version)
     *
     * @param from       Start time to search
     * @param to         End time to search
     * @param workflowId The particular workflow id to list executions for
     * @return an unmodifiable list of matching executions
     */
-  def listExecutions(from: Date, to: Date, workflowId: String): java.util.List[WorkflowExecutionInfo] = {
+  def listOpenExecutions(from: Date, to: Date, workflowId: String): java.util.List[WorkflowExecutionInfo] = {
     val openRequest: ListOpenWorkflowExecutionsRequest = new ListOpenWorkflowExecutionsRequest()
        .withDomain(domain)
        .withExecutionFilter(new WorkflowExecutionFilter().withWorkflowId(workflowId))
        .withStartTimeFilter(new ExecutionTimeFilter().withLatestDate(to).withOldestDate(from))
+
+    innerListOpenExecutions(openRequest)
+  }
+
+
+  /**
+    * List closed executions for this domain and workflow within the time window. (regardless of version)
+    *
+    * @param from Start time to search
+    * @param to   End time to search
+    * @return an unmodifiable list of matching executions
+    */
+  def listClosedExecutions(from: Date, to: Date): java.util.List[WorkflowExecutionInfo] = {
+
+    val closedRequest: ListClosedWorkflowExecutionsRequest = new ListClosedWorkflowExecutionsRequest()
+       .withDomain(domain)
+       .withTypeFilter(new WorkflowTypeFilter().withName(workflow))
+       .withStartTimeFilter(new ExecutionTimeFilter().withLatestDate(to).withOldestDate(from))
+
+    innerListClosedExecutions(closedRequest)
+  }
+
+  /**
+    * List closed executions for this domain, workflow, and workflowId within the time window. (regardless of version)
+    *
+    * @param from       Start time to search
+    * @param to         End time to search
+    * @param workflowId The particular workflow id to list executions for
+    * @return an unmodifiable list of matching executions
+    */
+  def listClosedExecutions(from: Date, to: Date, workflowId: String): java.util.List[WorkflowExecutionInfo] = {
 
     val closedRequest: ListClosedWorkflowExecutionsRequest = new ListClosedWorkflowExecutionsRequest()
        .withDomain(domain)
        .withExecutionFilter(new WorkflowExecutionFilter().withWorkflowId(workflowId))
        .withStartTimeFilter(new ExecutionTimeFilter().withLatestDate(to).withOldestDate(from))
 
-    innerListExecutions(openRequest, closedRequest)
+    innerListClosedExecutions(closedRequest)
   }
 
   /**
@@ -321,9 +348,7 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     stepEnumClass.getEnumConstants foreach register
   }
 
-
-  private[this] def innerListExecutions(listOpenWorkflowExecutionsRequest: ListOpenWorkflowExecutionsRequest,
-                                        listClosedWorkflowExecutionsRequest: ListClosedWorkflowExecutionsRequest): java.util.List[WorkflowExecutionInfo] = {
+  private[this] def innerListOpenExecutions(listOpenWorkflowExecutionsRequest: ListOpenWorkflowExecutionsRequest): java.util.List[WorkflowExecutionInfo] = {
     val openStream = {
       val iterateFn: (WorkflowExecutionInfos) => WorkflowExecutionInfos = prev =>
         if (prev == null || prev.getNextPageToken == null) null
@@ -334,18 +359,25 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
          .takeWhile(_ != null)
          .flatten(_.getExecutionInfos)
     }
+
+    Collections.unmodifiableList(scala.collection.JavaConversions.seqAsJavaList(openStream))
+  }
+
+
+  private[this] def innerListClosedExecutions(listClosedWorkflowExecutionsRequest: ListClosedWorkflowExecutionsRequest): java.util.List[WorkflowExecutionInfo] = {
+
     val closedStream = {
-      val iterateFn: (WorkflowExecutionInfos) => WorkflowExecutionInfos = prev =>
-        if (prev == null || prev.getNextPageToken == null) null
-        else swf.listClosedWorkflowExecutions(listClosedWorkflowExecutionsRequest.withNextPageToken(prev.getNextPageToken))
+    val iterateFn: (WorkflowExecutionInfos) => WorkflowExecutionInfos = prev =>
+      if (prev == null || prev.getNextPageToken == null) null
+      else swf.listClosedWorkflowExecutions(listClosedWorkflowExecutionsRequest.withNextPageToken(prev.getNextPageToken))
 
-      Stream
-         .iterate(swf.listClosedWorkflowExecutions(listClosedWorkflowExecutionsRequest))(iterateFn)
-         .takeWhile(_ != null)
-         .flatten(_.getExecutionInfos)
-    }
+    Stream
+       .iterate(swf.listClosedWorkflowExecutions(listClosedWorkflowExecutionsRequest))(iterateFn)
+       .takeWhile(_ != null)
+       .flatten(_.getExecutionInfos)
+  }
 
-    Collections.unmodifiableList(scala.collection.JavaConversions.seqAsJavaList(openStream ++ closedStream))
+    Collections.unmodifiableList(scala.collection.JavaConversions.seqAsJavaList(closedStream))
   }
 
 }
