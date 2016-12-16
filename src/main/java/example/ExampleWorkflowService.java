@@ -163,53 +163,48 @@ public class ExampleWorkflowService {
 
         while (true) {
             Thread.sleep(5000);
-            final List<WorkflowExecutionInfo> executions = service.workflowManagement.listExecutions(new Date(System.currentTimeMillis() - 1000 * 60 * 60 * 24), new Date());
-            int openExecutions = 0;
+            final List<WorkflowExecutionInfo> executions = service.workflowManagement.listOpenExecutions(new Date(System.currentTimeMillis() - 1000 * 60 * 60 * 24), new Date());
             for (WorkflowExecutionInfo executionInfo : executions) {
-                if (Objects.equals(executionInfo.getExecutionStatus(), "OPEN")) {
-                    openExecutions++;
+                final StepsHistory<ExampleWorkflowInput, ExampleWorkflowSteps> execution = service.workflowManagement.describeExecution(executionInfo.getExecution().getWorkflowId(), executionInfo.getExecution().getRunId());
+                System.out.println("");
+                System.out.println("WF history: " + executionInfo.getExecution());
+                System.out.println("  input: " + execution.input());
+                System.out.println("  firedTimers: " + execution.firedTimers());
+                System.out.println("  events:");
+                StepEvent<ExampleWorkflowSteps> lastEvent = null;
+                for (StepEvent<ExampleWorkflowSteps> event : execution.events()) {
+                    System.out.println("    " + event);
+                    lastEvent = event;
+                }
+                System.out.println();
 
-                    final StepsHistory<ExampleWorkflowInput, ExampleWorkflowSteps> execution = service.workflowManagement.describeExecution(executionInfo.getExecution().getWorkflowId(), executionInfo.getExecution().getRunId());
-                    System.out.println("");
-                    System.out.println("WF history: " + executionInfo.getExecution());
-                    System.out.println("  input: " + execution.input());
-                    System.out.println("  firedTimers: " + execution.firedTimers());
-                    System.out.println("  events:");
-                    StepEvent<ExampleWorkflowSteps> lastEvent = null;
-                    for (StepEvent<ExampleWorkflowSteps> event : execution.events()) {
-                        System.out.println("    " + event);
-                        lastEvent = event;
-                    }
-                    System.out.println();
+                // This simulates an external user deciding to cancel the workflow while a long-running step is in progress.
+                if (lastEvent != null && !oneExtractCancelled &&
+                    lastEvent.event().isLeft() && lastEvent.event().left().get() instanceof DefinedStep &&
+                    ((DefinedStep<ExampleWorkflowSteps>) lastEvent.event().left().get()).step() == ExampleWorkflowSteps.EXTRACT_STEP && Objects.equals(lastEvent.result(), "STARTED")) {
+                    System.out.println("Cancelling workflow!");
+                    service.workflowManagement.cancelWorkflowExecution(executionInfo.getExecution().getWorkflowId(), executionInfo.getExecution().getRunId());
+                    oneExtractCancelled = true;
+                }
 
-                    // This simulates an external user deciding to cancel the workflow while a long-running step is in progress.
-                    if (lastEvent != null && !oneExtractCancelled &&
-                        lastEvent.event().isLeft() && lastEvent.event().left().get() instanceof DefinedStep &&
-                        ((DefinedStep<ExampleWorkflowSteps>) lastEvent.event().left().get()).step() == ExampleWorkflowSteps.EXTRACT_STEP && Objects.equals(lastEvent.result(), "STARTED")) {
-                        System.out.println("Cancelling workflow!");
-                        service.workflowManagement.cancelWorkflowExecution(executionInfo.getExecution().getWorkflowId(), executionInfo.getExecution().getRunId());
-                        oneExtractCancelled = true;
-                    }
-
-                    // This simulates an external user deciding to cancel the workflow in between steps or during a step that does not respect cancellation requests
-                    if (lastEvent != null && !oneNonExtractCancelled &&
-                        lastEvent.event().isLeft() && lastEvent.event().left().get() instanceof DefinedStep &&
-                        ((DefinedStep<ExampleWorkflowSteps>) lastEvent.event().left().get()).step() != ExampleWorkflowSteps.EXTRACT_STEP) {
-                        System.out.println("Cancelling workflow!");
-                        service.workflowManagement.cancelWorkflowExecution(executionInfo.getExecution().getWorkflowId(), executionInfo.getExecution().getRunId());
-                        oneNonExtractCancelled = true;
-                    }
+                // This simulates an external user deciding to cancel the workflow in between steps or during a step that does not respect cancellation requests
+                if (lastEvent != null && !oneNonExtractCancelled &&
+                    lastEvent.event().isLeft() && lastEvent.event().left().get() instanceof DefinedStep &&
+                    ((DefinedStep<ExampleWorkflowSteps>) lastEvent.event().left().get()).step() != ExampleWorkflowSteps.EXTRACT_STEP) {
+                    System.out.println("Cancelling workflow!");
+                    service.workflowManagement.cancelWorkflowExecution(executionInfo.getExecution().getWorkflowId(), executionInfo.getExecution().getRunId());
+                    oneNonExtractCancelled = true;
                 }
             }
-            if (openExecutions == 0) {
+            if (executions.size() == 0) {
                 System.out.println("all workflows are done!");
                 break;
             } else {
-                System.out.println(openExecutions + " workflows are still open.");
+                System.out.println(executions.size() + " workflows are still open.");
             }
         }
 
-        final List<WorkflowExecutionInfo> executions = service.workflowManagement.listExecutions(runStart, new Date());
+        final List<WorkflowExecutionInfo> executions = service.workflowManagement.listClosedExecutions(runStart, new Date());
         System.out.println("\nExecutions this run:");
         for (WorkflowExecutionInfo executionInfo : executions) {
             final StepsHistory<ExampleWorkflowInput, ExampleWorkflowSteps> execution = service.workflowManagement.describeExecution(executionInfo.getExecution().getWorkflowId(), executionInfo.getExecution().getRunId());

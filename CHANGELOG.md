@@ -4,6 +4,9 @@ All notable changes to this projected will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 This changelog follows [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## 5.0 - 2016-12-06
+* new APIs for listing open and closed workflow executions
+
 ## 4.1 - 2016-10-04
 * bugfix: Assertion would fail under some conditions when workflow steps return InProgress. This fix clarifies and unifies when workflow steps are considered "the same" by SSWF.
 
