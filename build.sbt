@@ -12,8 +12,6 @@ scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xfatal-warning
 
 javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
 
-credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
-
 resolvers ++= Seq(
   "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases/"
 )
