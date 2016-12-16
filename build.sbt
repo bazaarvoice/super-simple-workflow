@@ -10,6 +10,8 @@ crossScalaVersions := Seq("2.10.4", "2.11.7")
 
 scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xfatal-warnings")
 
+javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
+
 credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
 
 resolvers ++= Seq(
