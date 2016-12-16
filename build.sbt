@@ -23,7 +23,10 @@ libraryDependencies ++= Seq(
   "org.joda" % "joda-convert" % "1.2"
 )
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.6" % "test"
+libraryDependencies ++= Seq(
+  "org.scalatest" %% "scalatest" % "2.2.6" % "test",
+  "org.mockito" % "mockito-core" % "1.9.5" % "test"
+)
 
 net.virtualvoid.sbt.graph.Plugin.graphSettings
 
