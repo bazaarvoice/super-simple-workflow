@@ -367,15 +367,15 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
   private[this] def innerListClosedExecutions(listClosedWorkflowExecutionsRequest: ListClosedWorkflowExecutionsRequest): java.util.List[WorkflowExecutionInfo] = {
 
     val closedStream = {
-    val iterateFn: (WorkflowExecutionInfos) => WorkflowExecutionInfos = prev =>
-      if (prev == null || prev.getNextPageToken == null) null
-      else swf.listClosedWorkflowExecutions(listClosedWorkflowExecutionsRequest.withNextPageToken(prev.getNextPageToken))
+      val iterateFn: (WorkflowExecutionInfos) => WorkflowExecutionInfos = prev =>
+        if (prev == null || prev.getNextPageToken == null) null
+        else swf.listClosedWorkflowExecutions(listClosedWorkflowExecutionsRequest.withNextPageToken(prev.getNextPageToken))
 
-    Stream
-       .iterate(swf.listClosedWorkflowExecutions(listClosedWorkflowExecutionsRequest))(iterateFn)
-       .takeWhile(_ != null)
-       .flatten(_.getExecutionInfos)
-  }
+      Stream
+         .iterate(swf.listClosedWorkflowExecutions(listClosedWorkflowExecutionsRequest))(iterateFn)
+         .takeWhile(_ != null)
+         .flatten(_.getExecutionInfos)
+    }
 
     Collections.unmodifiableList(scala.collection.JavaConversions.seqAsJavaList(closedStream))
   }
