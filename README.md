@@ -1,3 +1,5 @@
+[![Join the chat at https://gitter.im/super-simple-workflow/Lobby](https://badges.gitter.im/super-simple-workflow/Lobby.svg)](https://gitter.im/super-simple-workflow/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Getting Started
 ===============
 
