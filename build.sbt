@@ -4,6 +4,7 @@ import Dependencies._
 lazy val core = project
   .settings(Commons.settings: _*)
   .settings(
+    name := "sswf",
     libraryDependencies ++= Seq(
       "com.amazonaws" % "aws-java-sdk" % "1.11.73",
       "org.joda" % "joda-convert" % "1.2"
@@ -45,6 +46,7 @@ lazy val core = project
 lazy val example = project
   .settings(Commons.settings: _*)
   .settings(
+    name := "sswf-example",
     libraryDependencies ++= Seq(
       "com.amazonaws" % "aws-java-sdk" % "1.11.73",
       "org.joda" % "joda-convert" % "1.2"

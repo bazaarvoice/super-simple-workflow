@@ -8,7 +8,7 @@ object Commons {
     scalaVersion := "2.11.7",
     crossScalaVersions := Seq("2.10.4", "2.11.7"),
     scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xfatal-warnings"),
-    javacOptions ++= Seq("-source", "1.8", "-target", "1.8"),
+    javacOptions in (Compile, compile) ++= Seq("-source", "1.8", "-target", "1.8"),
 
     resolvers ++= Seq(
       "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases/"
