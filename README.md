@@ -53,7 +53,7 @@ Your AWS credentials must have access to at least the following [SWF actions](ht
 - GetWorkflowExecutionHistory
 - DescribeDomain
 
-The example code is in `example/src/main/java/example`. This is everything you'll need to do to get up and running!
+The example code is in `sswf-java-example/src/main/java/example`. This is everything you'll need to do to get up and running!
 
 
 Managing Versions and Names of Things
