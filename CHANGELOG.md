@@ -4,6 +4,13 @@ All notable changes to this projected will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 This changelog follows [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## 5.1 - 2016-12-06
+* modularize the project (pull the example code from the main artefact)
+* move integration tests to an integration testing task (TravisCI builds now pass)
+** Note that all of our tests are integration tests, so the "sbt test" task
+   now does nothing. We have https://github.com/bazaarvoice/super-simple-workflow/issues/20
+   open to track the transition from integration tests to unit tests.
+
 ## 5.0 - 2016-12-06
 * new APIs for listing open and closed workflow executions
 

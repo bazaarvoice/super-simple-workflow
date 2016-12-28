@@ -27,7 +27,7 @@ result of some step.
 Working example
 ---------------
 
-Run the example with `sbt run` or through IDEA by running `ExampleWorkflowService`.
+Run the example with `sbt example/run` or through IDEA by running `ExampleWorkflowService`.
 Note that you must have AWS credentials in your env: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_KEY`.
 
 Your AWS credentials must have access to at least the following [SWF actions](http://docs.aws.amazon.com/amazonswf/latest/developerguide/swf-api-by-category.html):
@@ -53,7 +53,7 @@ Your AWS credentials must have access to at least the following [SWF actions](ht
 - GetWorkflowExecutionHistory
 - DescribeDomain
 
-The example code is in `src/main/java/example`. This is everything you'll need to do to get up and running!
+The example code is in `example/src/main/java/example`. This is everything you'll need to do to get up and running!
 
 
 Managing Versions and Names of Things
@@ -180,9 +180,9 @@ build the project:
 ```
 sbt compile
 # to run samples
-sbt run 
-# execute tests
-sbt test
+sbt example/run 
+# execute unit, integration, and end-to-end tests
+sbt test-all
 # to package
 sbt publishLocal #(etc...)
 ```
