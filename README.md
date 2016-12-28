@@ -1,8 +1,6 @@
 [![Join the chat at https://gitter.im/super-simple-workflow/Lobby](https://badges.gitter.im/super-simple-workflow/Lobby.svg)](https://gitter.im/super-simple-workflow/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Build Status](https://travis-ci.org/bazaarvoice/super-simple-workflow.svg?branch=master)](https://travis-ci.org/bazaarvoice/super-simple-workflow)
 
-NB: The TravisCI builds are failing because the tests are integration tests that need an AWS account to execute against. We have opened #20 to fix this.
-
 Getting Started
 ===============
 
