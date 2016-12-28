@@ -90,7 +90,9 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
         innerMakeDecision(newDecisionTask, events)
       }
       catch {
-        case t: Throwable => log.error(s"Exception making a decision:  ${t.getClass}: ${t.getMessage}"); throw t
+        case t: Throwable =>
+          log.error(s"Exception making a decision:  ${t.getClass}: ${t.getMessage}")
+          throw t
       }
     log.debug(s"made decision for [${decisionTask.getStartedEventId}]")
 

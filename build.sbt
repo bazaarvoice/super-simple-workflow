@@ -45,14 +45,23 @@ lazy val core = (project in file("sswf-core"))
         </developers>
    )
 
+lazy val guava20 = (project in file("sswf-guava-20"))
+   .settings(Commons.settings: _*)
+   .settings(
+     name := "sswf-guava-20",
+     libraryDependencies ++= Seq(
+       "com.google.guava" % "guava" % "20.0",
+       "org.slf4j" % "slf4j-api" % "1.7.22",
+       "org.slf4j" % "slf4j-simple" % "1.7.22",
+       "com.google.code.findbugs" % "jsr305" % "2.0.3" // work around a bug in scalac https://issues.scala-lang.org/browse/SI-8978
+     )
+   )
+   .dependsOn(core)
+
 lazy val example = (project in file("sswf-java-example"))
    .settings(Commons.settings: _*)
    .settings(
      name := "sswf-example",
-     libraryDependencies ++= Seq(
-       "com.amazonaws" % "aws-java-sdk" % "1.11.73",
-       "org.joda" % "joda-convert" % "1.2"
-     ),
      mainClass in(Compile, run) := Some("example.ExampleWorkflowService")
    )
-   .dependsOn(core)
+   .dependsOn(guava20)

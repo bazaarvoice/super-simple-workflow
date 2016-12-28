@@ -21,23 +21,21 @@ public class ExampleSignalHandler {
     public ExampleSignalHandler(final WorkflowManagement<ExampleWorkflowInput, ExampleWorkflowSteps> workflowManagement) {this.workflowManagement = workflowManagement;}
 
     public void start() {
-        executorService.scheduleAtFixedRate(new Runnable() {
-            @Override public void run() {
-                try {
-                    final String poll = signalsToSend.poll();
-                    if (poll != null) {
-                       workflowManagement.signalWorkflow(poll);
-                    }
-                } catch (Exception e) {
-                    System.out.println("ERROR: Caught Exception: "+e.toString());
-                    e.printStackTrace(System.out);
-                    throw e;
+        executorService.scheduleAtFixedRate(() -> {
+            try {
+                final String poll = signalsToSend.poll();
+                if (poll != null) {
+                   workflowManagement.signalWorkflow(poll);
                 }
+            } catch (Exception e) {
+                System.out.println("ERROR: Caught Exception: "+e.toString());
+                e.printStackTrace(System.out);
+                throw e;
             }
         },10,10, TimeUnit.SECONDS);
     }
 
-    public void addSignal(String signal) {
+    void addSignal(String signal) {
         final boolean offer = signalsToSend.offer(signal);
         if (!offer) {
             System.out.println("ERROR: Couldn't add to queue");
