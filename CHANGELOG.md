@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 This changelog follows [Keep a CHANGELOG](http://keepachangelog.com/).
 
 ## 5.1 - 2016-12-06
+* create new `sswf-guava-20` module with a few convenience classes defining
+  the decision and action services
 * modularize the project (pull the example code from the main artefact)
 * move integration tests to an integration testing task (TravisCI builds now pass)
 ** Note that all of our tests are integration tests, so the "sbt test" task
