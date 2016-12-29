@@ -4,7 +4,7 @@ import com.typesafe.sbt.pgp.PgpKeys._
 
 object Commons {
   val settings: Seq[Def.Setting[_]] = Seq(
-    version := "5.1",
+    version := "5.2",
     organization := "com.bazaarvoice",
     scalaVersion := "2.11.7",
     crossScalaVersions := Seq("2.10.4", "2.11.7"),
