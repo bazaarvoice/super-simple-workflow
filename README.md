@@ -197,3 +197,6 @@ sbt +compile
 # to package
 sbt +publishLocal #(etc...)
 ```
+
+performing a release
+--------------------

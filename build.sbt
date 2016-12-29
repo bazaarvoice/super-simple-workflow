@@ -1,6 +1,3 @@
-
-
-
 lazy val core = (project in file("sswf-core"))
    .configs(Configs.all: _*)
    .settings(Commons.settings: _*)
@@ -11,39 +8,9 @@ lazy val core = (project in file("sswf-core"))
        "com.amazonaws" % "aws-java-sdk" % "1.11.73",
        "org.joda" % "joda-convert" % "1.2"
      ),
-     libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.6" % "e2e,it,test",
-     publishMavenStyle := true,
-     publishTo := {
-       val nexus = "https://oss.sonatype.org/"
-       if (isSnapshot.value)
-         Some("snapshots" at nexus + "content/repositories/snapshots")
-       else
-         Some("releases" at nexus + "service/local/staging/deploy/maven2")
-     },
-     publishArtifact in Test := false,
-     pomIncludeRepository := { _ => false },
-     pomExtra := <url>http://github.com/bazaarvoice/super-simple-workflow</url>
-        <licenses>
-          <license>
-            <name>The Apache Software License, Version 2.0</name>
-            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-            <distribution>repo</distribution>
-          </license>
-        </licenses>
-        <scm>
-          <url>http://github.com/bazaarvoice/super-simple-workflow</url>
-          <connection>scm:git:git@github.com:bazaarvoice/super-simple-workflow.git</connection>
-          <developerConnection>scm:git:git@github.com:bazaarvoice/super-simple-workflow.git</developerConnection>
-          <tag>HEAD</tag>
-        </scm>
-        <developers>
-          <developer>
-            <id>vvcephei</id>
-            <name>John Roesler</name>
-            <url>https://github.com/vvcephei/</url>
-          </developer>
-        </developers>
+     libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.6" % "e2e,it,test"
    )
+   .settings(Commons.publish: _*)
 
 lazy val guava20 = (project in file("sswf-guava-20"))
    .settings(Commons.settings: _*)
@@ -56,6 +23,7 @@ lazy val guava20 = (project in file("sswf-guava-20"))
        "com.google.code.findbugs" % "jsr305" % "2.0.3" // work around a bug in scalac https://issues.scala-lang.org/browse/SI-8978
      )
    )
+   .settings(Commons.publish: _*)
    .dependsOn(core)
 
 lazy val example = (project in file("sswf-java-example"))
@@ -64,4 +32,5 @@ lazy val example = (project in file("sswf-java-example"))
      name := "sswf-example",
      mainClass in(Compile, run) := Some("example.ExampleWorkflowService")
    )
+   .settings(Commons.nopublish: _*)
    .dependsOn(guava20)
