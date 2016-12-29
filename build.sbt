@@ -34,3 +34,11 @@ lazy val example = (project in file("sswf-java-example"))
    )
    .settings(Commons.nopublish: _*)
    .dependsOn(guava20)
+
+lazy val root = (project in file("."))
+   .settings(Commons.settings: _*)
+   .settings(
+     name := "sswf-root"
+   )
+   .settings(Commons.nopublish: _*)
+   .aggregate(core, guava20, example)
