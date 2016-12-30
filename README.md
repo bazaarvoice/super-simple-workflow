@@ -14,7 +14,7 @@ Here's how it works:
     * The `workflow` method returns a list of steps to execute. You get to look at the workflow input, but not the history. 
       The idea is that you define a workflow that's easy to predict and consists of a series of steps to completion.
     * The `act` method specifies the behaviour for each step.
-4. Register and start your workflow using the `WorkflowService` class
+4. Register and start your workflow using the `WorkflowManagement` class
 
 One big thing that sticks out here is that your workflow is just a sequence of steps. There's no branching or conditional execution of steps.
 In our experience, most workflows wind up being almost, if not entirely, linear. Deciding to just support that use case means that we can make it
@@ -200,3 +200,5 @@ sbt +publishLocal #(etc...)
 
 performing a release
 --------------------
+
+We have a (private) jenkins job to do releases. It's `super-simple-workflow-release`.
