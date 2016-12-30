@@ -2,25 +2,21 @@ package com.bazaarvoice.sswf;
 
 
 public enum StateTransitionSteps implements WorkflowStep {
-    FINAL_STEP(1, 1),
-    TIMEOUT_STEP(1, 1);
+    FINAL_STEP(1),
+    TIMEOUT_STEP(1);
 
-    private int startToFinishTimeout;
-    private int startToHeartbeatTimeoutSeconds;
+    private int timeout;
 
-    StateTransitionSteps(final int startToFinishTimeout, final int startToHeartbeatTimeoutSeconds) {
-        this.startToFinishTimeout = startToFinishTimeout;
-        this.startToHeartbeatTimeoutSeconds = startToHeartbeatTimeoutSeconds;
+    StateTransitionSteps(final int timeout) {
+        this.timeout = timeout;
     }
 
-    @Override public int startToFinishTimeoutSeconds() {
-        return startToFinishTimeout;
-    }
 
-    @Override public int startToHeartbeatTimeoutSeconds() { return startToHeartbeatTimeoutSeconds; }
-
-    @Override public InProgressTimerFunction inProgressTimerSecondsFn() {
+    @Override public InProgressSleepFunction inProgressSleepSecondsFn() {
         return (invocationNum, cumulativeStepDurationSeconds) -> Math.min(invocationNum * 2, 4);
     }
 
+    @Override public int timeoutSeconds() {
+        return timeout;
+    }
 }

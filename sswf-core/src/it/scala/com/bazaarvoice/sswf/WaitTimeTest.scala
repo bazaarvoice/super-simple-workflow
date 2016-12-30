@@ -6,7 +6,6 @@ import com.bazaarvoice.sswf.model.history.StepsHistory
 import com.bazaarvoice.sswf.model.result.{InProgress, StepResult, Success}
 import com.bazaarvoice.sswf.model.{DefinedStep, ScheduledStep, StepInput}
 import com.bazaarvoice.sswf.service.{StepActionWorker, StepDecisionWorker, WorkflowManagement}
-import example.StdOutLogger
 import org.joda.time.Duration
 import org.scalatest.FlatSpec
 
@@ -44,7 +43,7 @@ class WaitTimeTest extends FlatSpec {
   private val domain: String = "sswf-tests"
   private val wf: String = "wait-test"
   private val swf: AmazonSimpleWorkflowClient = new AmazonSimpleWorkflowClient()
-  private val logger: StdOutLogger = new StdOutLogger
+  private val logger: Logger = new SilentLogger
   val manager = new WorkflowManagement[String, WaitTimeSteps](domain, wf, "0.0", wf, swf, inputParser = parser, log = logger)
   val definition = new WaitTimeTestWorkflowDef()
   val actor = new StepActionWorker[String, WaitTimeSteps](domain, wf, swf, parser, definition, log = logger)

@@ -1,25 +1,20 @@
 package com.bazaarvoice.sswf;
 
 public enum WaitTimeSteps implements WorkflowStep {
-    DUMMY_STEP(120, 120),
-    WAIT_STEP(120, 120);
+    DUMMY_STEP(120),
+    WAIT_STEP(120);
 
-    private int startToFinishTimeout;
-    private int startToHeartbeatTimeoutSeconds;
+    private int timeout;
 
-    WaitTimeSteps(final int startToFinishTimeout, final int startToHeartbeatTimeoutSeconds) {
-        this.startToFinishTimeout = startToFinishTimeout;
-        this.startToHeartbeatTimeoutSeconds = startToHeartbeatTimeoutSeconds;
+    WaitTimeSteps(final int timeout) {
+        this.timeout = timeout;
     }
 
-    @Override public int startToFinishTimeoutSeconds() {
-        return startToFinishTimeout;
-    }
-
-    @Override public int startToHeartbeatTimeoutSeconds() { return startToHeartbeatTimeoutSeconds; }
-
-    @Override public InProgressTimerFunction inProgressTimerSecondsFn() {
+    @Override public InProgressSleepFunction inProgressSleepSecondsFn() {
         return (invocationNum, cumulativeStepDurationSeconds) -> Math.min(invocationNum * 2, 4);
     }
 
+    @Override public int timeoutSeconds() {
+        return timeout;
+    }
 }

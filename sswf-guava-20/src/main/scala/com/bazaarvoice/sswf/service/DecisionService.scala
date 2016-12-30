@@ -1,12 +1,12 @@
 package com.bazaarvoice.sswf.service
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
 
 import com.amazonaws.AbortedException
 import com.amazonaws.services.simpleworkflow.model.{DecisionTask, RespondDecisionTaskCompletedRequest}
 import com.bazaarvoice.sswf.WorkflowStep
-import com.google.common.util.concurrent.{AbstractScheduledService, Service}
 import com.google.common.util.concurrent.AbstractScheduledService.Scheduler
+import com.google.common.util.concurrent.{AbstractScheduledService, MoreExecutors, Service}
 import org.slf4j.LoggerFactory
 
 import scala.reflect.ClassTag

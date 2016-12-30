@@ -82,8 +82,16 @@ public class ExampleWorkflowService {
     }
 
     private void stop() {
-        decisionService.stopAsync().awaitTerminated();
-        actionService.stopAsync().awaitTerminated();
+        signalHandler.stop();
+
+        System.out.println("stopping decision service");
+        final Service stopDecision = decisionService.stopAsync();
+        System.out.println("stopping action service");
+        final Service stopAction = actionService.stopAsync();
+        stopDecision.awaitTerminated();
+        System.out.println("stopped decision service");
+        stopAction.awaitTerminated();
+        System.out.println("stopped action service");
     }
 
     public static void main(String[] args) throws InterruptedException {
@@ -176,6 +184,7 @@ public class ExampleWorkflowService {
         // stop everything and exit
         System.out.println("shutting down...");
         service.stop();
+        System.out.println("shut down");
     }
 
     private static void startWorkflowForFunAndProfit(final ExampleWorkflowService service) {

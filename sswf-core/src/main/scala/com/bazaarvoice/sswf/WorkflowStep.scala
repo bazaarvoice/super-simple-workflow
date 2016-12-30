@@ -10,21 +10,16 @@ trait WorkflowStep {
   /** when to consider the Step thread hung and schedule another one.
     * This does not cancel the execution.
     */
-  def startToFinishTimeoutSeconds: Int
-
-  /** when to consider the Step thread hung and schedule another one.
-    * This does not cancel the execution.
-    */
-  def startToHeartbeatTimeoutSeconds: Int
+  def timeoutSeconds: Int
 
   /** How long to wait before the next attempt when the step returns InProgress. */
-  def inProgressTimerSecondsFn: InProgressTimerFunction
+  def inProgressSleepSecondsFn: InProgressSleepFunction
 }
 
-trait InProgressTimerFunction {
+trait InProgressSleepFunction {
   def apply(invocationNum: Int, cumulativeStepDurationSeconds: Int): Int
 }
 
-class ConstantInProgressTimerFunction(secondsToWait: Int) extends InProgressTimerFunction {
+class ConstantInProgressSleepFunction(secondsToWait: Int) extends InProgressSleepFunction {
   override def apply(invocationNum: Int, cumulativeStepDurationSeconds: Int): Int = secondsToWait
 }

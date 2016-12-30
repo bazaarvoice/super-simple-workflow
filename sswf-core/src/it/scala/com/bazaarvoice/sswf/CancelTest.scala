@@ -6,7 +6,6 @@ import com.bazaarvoice.sswf.model.history.StepsHistory
 import com.bazaarvoice.sswf.model.result.{InProgress, StepResult}
 import com.bazaarvoice.sswf.model.{DefinedStep, ScheduledStep, StepInput}
 import com.bazaarvoice.sswf.service.{StepActionWorker, StepDecisionWorker, WorkflowManagement}
-import example.StdOutLogger
 import org.scalatest.FlatSpec
 
 import scala.collection.JavaConversions._
@@ -23,7 +22,7 @@ class CancelTestWorkflowDef(rememberer: Rememberer) extends WorkflowDefinition[S
 }
 
 class Rememberer {
-  var toRemember: String = null
+  var toRemember: String = _
   def remember(s: String): Unit = {
     toRemember = s
   }
@@ -39,7 +38,7 @@ class CancelTest extends FlatSpec {
   private val domain: String = "sswf-tests"
   private val wf: String = "cancel-test"
   private val swf: AmazonSimpleWorkflowClient = new AmazonSimpleWorkflowClient()
-  private val logger: StdOutLogger = new StdOutLogger
+  private val logger: Logger = new SilentLogger
   val manager = new WorkflowManagement[String, TestSteps](domain, wf, "0.0", wf, swf, inputParser = parser, log = logger)
   val definition = new CancelTestWorkflowDef(rememberer)
   val actor = new StepActionWorker[String, TestSteps](domain, wf, swf, parser, definition, log = logger)

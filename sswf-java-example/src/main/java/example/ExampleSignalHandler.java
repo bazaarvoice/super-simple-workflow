@@ -35,6 +35,10 @@ public class ExampleSignalHandler {
         },10,10, TimeUnit.SECONDS);
     }
 
+    public void stop() {
+        executorService.shutdownNow();
+    }
+
     void addSignal(String signal) {
         final boolean offer = signalsToSend.offer(signal);
         if (!offer) {

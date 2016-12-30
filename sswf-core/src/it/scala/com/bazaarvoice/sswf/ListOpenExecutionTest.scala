@@ -8,7 +8,6 @@ import com.bazaarvoice.sswf.model.history.StepsHistory
 import com.bazaarvoice.sswf.model.result.{StepResult, Success}
 import com.bazaarvoice.sswf.model.{DefinedStep, ScheduledStep, StepInput}
 import com.bazaarvoice.sswf.service.{StepActionWorker, StepDecisionWorker, WorkflowManagement}
-import example.StdOutLogger
 import org.joda.time.DateTime
 import org.scalatest.FlatSpec
 
@@ -39,7 +38,7 @@ class ListOpenExecutionTest extends FlatSpec {
   private val domain: String = "sswf-tests"
   private val wf: String = "list-open-executions-test"
   private val swf: AmazonSimpleWorkflowClient = new AmazonSimpleWorkflowClient()
-  private val logger: StdOutLogger = new StdOutLogger
+  private val logger: Logger = new SilentLogger
 
   val manager = new WorkflowManagement[String, ListOpenExecutionTestSteps](domain, wf, "0.0", wf, swf, inputParser = parser, log = logger)
   val definition = new DummyWorkflowDefinition()
@@ -88,7 +87,8 @@ class ListOpenExecutionTest extends FlatSpec {
   }
   def waitForStepResult(): RespondActivityTaskCompletedRequest = {
     val scheduleActivityDecisionTask: DecisionTask = untilNotNull(decider.pollForDecisionsToMake())
-    val scheduleActivityDecision: RespondDecisionTaskCompletedRequest = decider.makeDecision(scheduleActivityDecisionTask)
+
+    decider.makeDecision(scheduleActivityDecisionTask)
 
     val activityTask: ActivityTask = untilNotNull(actor.pollForWork())
     actor.doWork(activityTask)

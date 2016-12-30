@@ -1,24 +1,20 @@
 package com.bazaarvoice.sswf;
 
 public enum ListOpenExecutionTestSteps implements WorkflowStep {
-    DUMMY_STEP1(1, 1),
-    DUMMY_STEP2(1, 1);
+    DUMMY_STEP1(1),
+    DUMMY_STEP2(1);
 
-    private int startToFinishTimeout;
-    private int startToHeartbeatTimeoutSeconds;
+    private int timeout;
 
-    ListOpenExecutionTestSteps(final int startToFinishTimeout, final int startToHeartbeatTimeoutSeconds) {
-        this.startToFinishTimeout = startToFinishTimeout;
-        this.startToHeartbeatTimeoutSeconds = startToHeartbeatTimeoutSeconds;
+    ListOpenExecutionTestSteps(final int timeout) {
+        this.timeout = timeout;
     }
 
-    @Override public int startToFinishTimeoutSeconds() {
-        return startToFinishTimeout;
+    @Override public int timeoutSeconds() {
+        return timeout;
     }
 
-    @Override public int startToHeartbeatTimeoutSeconds() { return startToHeartbeatTimeoutSeconds; }
-
-    @Override public InProgressTimerFunction inProgressTimerSecondsFn() {
+    @Override public InProgressSleepFunction inProgressSleepSecondsFn() {
         return (invocationNum, cumulativeStepDurationSeconds) -> Math.min(invocationNum * 2, 4);
     }
 

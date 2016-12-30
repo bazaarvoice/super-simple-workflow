@@ -43,7 +43,7 @@ import scala.util.Random
   * @param stepScheduleToStartTimeoutSeconds    The duration you expect to pass _after_ a task is scheduled, and _before_ an actionWorker picks it up. If there is always a free actionWorker, this is
   *                                             just the polling interval for actions to execute. If all the actionWorkers are busy, though, the action may time out waiting to start. This isn't
   *                                             harmful, though, since the decisionWorker will simply re-schedule it. Advice: make your actionWorker pool large enough that all scheduled work can
-  *                                             execute immediately, and set this timeout to the polling interval for action work. Default: 60s
+  *                                             execute immediately, and set this timeout to the polling interval for action work. Default: 5 minutes
   * @param inputParser                          See InputParser
   * @tparam StepEnum The enum containing workflow step definitions
   */
@@ -332,10 +332,10 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
              .withVersion(version)
              .withDomain(domain)
              .withDefaultTaskList(new TaskList().withName(taskList))
-             .withDefaultTaskHeartbeatTimeout(activity.startToHeartbeatTimeoutSeconds.toString)
+             .withDefaultTaskHeartbeatTimeout(activity.timeoutSeconds.toString)
              .withDefaultTaskScheduleToStartTimeout(stepScheduleToStartTimeoutSeconds.toString)
-             .withDefaultTaskScheduleToCloseTimeout((stepScheduleToStartTimeoutSeconds + activity.startToFinishTimeoutSeconds).toString)
-             .withDefaultTaskStartToCloseTimeout(activity.startToFinishTimeoutSeconds.toString)
+             .withDefaultTaskScheduleToCloseTimeout((stepScheduleToStartTimeoutSeconds + activity.timeoutSeconds).toString)
+             .withDefaultTaskStartToCloseTimeout(activity.timeoutSeconds.toString)
           )
         } catch {
           case t: Throwable =>

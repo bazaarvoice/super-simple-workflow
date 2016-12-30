@@ -1,26 +1,19 @@
 package com.bazaarvoice.sswf;
 
 public enum TestSteps implements WorkflowStep {
-    INPROGRESS_STEP(120, 120) {
-        @Override public InProgressTimerFunction inProgressTimerSecondsFn() {
+    INPROGRESS_STEP(120) {
+        @Override public InProgressSleepFunction inProgressSleepSecondsFn() {
             return (invocationNum, cumulativeStepDurationSeconds) -> 1;
         }
     };
 
-    private int startToFinishTimeout;
-    private int startToHeartbeatTimeoutSeconds;
+    private int timeout;
 
-    TestSteps(final int startToFinishTimeout, final int startToHeartbeatTimeoutSeconds) {
-        this.startToFinishTimeout = startToFinishTimeout;
-        this.startToHeartbeatTimeoutSeconds = startToHeartbeatTimeoutSeconds;
+    TestSteps(final int timeout) {
+        this.timeout = timeout;
     }
 
-    @Override public int startToFinishTimeoutSeconds() {
-        return startToFinishTimeout;
+    @Override public int timeoutSeconds() {
+        return timeout;
     }
-
-    @Override public int startToHeartbeatTimeoutSeconds() { return startToHeartbeatTimeoutSeconds; }
-
-
-
 }

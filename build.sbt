@@ -30,7 +30,8 @@ lazy val example = (project in file("sswf-java-example"))
    .settings(Commons.settings: _*)
    .settings(
      name := "sswf-example",
-     mainClass in(Compile, run) := Some("example.ExampleWorkflowService")
+     mainClass in(Compile, run) := Some("example.ExampleWorkflowService"),
+     fork in run := true
    )
    .settings(Commons.nopublish: _*)
    .dependsOn(guava20)

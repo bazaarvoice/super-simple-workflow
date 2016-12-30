@@ -41,7 +41,7 @@ Your AWS credentials must have access to at least the following [SWF actions](ht
 - StartWorkflowExecution
 - SignalWorkflowExecution
 - TerminateWorkflowExecution
-- RegisterActivityType
+- RegisterActivityTypef
 - RegisterWorkflowType
 - RegisterDomain
 - RequestCancelWorkflowExecution

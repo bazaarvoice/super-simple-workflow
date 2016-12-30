@@ -6,7 +6,6 @@ import com.bazaarvoice.sswf.model.history.StepsHistory
 import com.bazaarvoice.sswf.model.result.{StepResult, Success, TimedOut}
 import com.bazaarvoice.sswf.model.{DefinedStep, ScheduledStep, SleepStep, StepInput}
 import com.bazaarvoice.sswf.service.{StepActionWorker, StepDecisionWorker, WorkflowManagement}
-import example.StdOutLogger
 import org.scalatest.FlatSpec
 
 import scala.collection.JavaConversions._
@@ -43,7 +42,7 @@ class StepTransitionTest extends FlatSpec {
   private val domain: String = "sswf-tests"
   private val wf: String = "transition-test"
   private val swf: AmazonSimpleWorkflowClient = new AmazonSimpleWorkflowClient()
-  private val logger: StdOutLogger = new StdOutLogger
+  private val logger: Logger = new SilentLogger
   val manager = new WorkflowManagement[String, StateTransitionSteps](domain, wf, "0.0", wf, swf, inputParser = parser, log = logger)
   val definition = new StepTransitionWorkflowDefinition()
   val actor = new StepActionWorker[String, StateTransitionSteps](domain, wf, swf, parser, definition, log = logger)
@@ -86,7 +85,8 @@ class StepTransitionTest extends FlatSpec {
 
   def waitForStepResult(): RespondActivityTaskCompletedRequest = {
     val scheduleActivityDecisionTask: DecisionTask = untilNotNull(decider.pollForDecisionsToMake())
-    val scheduleActivityDecision: RespondDecisionTaskCompletedRequest = decider.makeDecision(scheduleActivityDecisionTask)
+
+    decider.makeDecision(scheduleActivityDecisionTask)
 
     val activityTask: ActivityTask = untilNotNull(actor.pollForWork())
     actor.doWork(activityTask)

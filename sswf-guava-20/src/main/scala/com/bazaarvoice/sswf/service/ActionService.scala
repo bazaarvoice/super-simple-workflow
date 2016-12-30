@@ -69,6 +69,10 @@ class ActionService[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep) : 
     }
   override def shutDown(): Unit = {
     workerPool.shutdown()
+    while(!workerPool.isShutdown) {
+      LOG.info("Waiting on worker pool to shut down...")
+      Thread.sleep(10);
+    }
     super.shutDown()
   }
 }

@@ -287,7 +287,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
       new StartTimerDecisionAttributes()
          .withTimerId(UUID.randomUUID().toString)
          .withControl(packTimer(retry.step.name, retry.stepInput))
-         .withStartToFireTimeout(retry.step.inProgressTimerSecondsFn(stepInvocations, cumulativeStepDurationSeconds).toString)
+         .withStartToFireTimeout(retry.step.inProgressSleepSecondsFn(stepInvocations, cumulativeStepDurationSeconds).toString)
     )
 
   private[this] def waitForSignals(durationSeconds: Int, signals: List[String]) =

@@ -26,7 +26,7 @@ trait WorkflowDefinition[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     * @param step              The action to take next
     * @param input             The input to the workflow
     * @param stepInput         The input to this particular step
-    * @param heartbeatCallback A function to call to report liveness and progress. Response `true` if cancellation is requested.
+    * @param heartbeatCallback A function to call to report liveness and progress. Calling this method resets the timeout for the step. Response `true` if cancellation is requested.
     * @return The outcome of the execution.
     */
   def act(step: StepEnum, input: SSWFInput, stepInput: StepInput, heartbeatCallback: HeartbeatCallback, execution: WorkflowExecution): StepResult

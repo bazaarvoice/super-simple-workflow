@@ -91,7 +91,7 @@ class StepActionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep)
 
     val heartbeatCallback = new HeartbeatCallback {
       /**
-        * Report liveness and progress. Response `true` if cancellation is requested.
+        * Report liveness and progress. Calling this method resets the timeout for the step. Response `true` if cancellation is requested.
         *
         * @param progressMessage Report any information about your progress.
         * @return `true` if cancellation is requested.
