@@ -4,6 +4,15 @@ All notable changes to this projected will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 This changelog follows [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## 6.0 - 2016-12-30
+* simplify the step interface by consolidating heartbear and step timeouts.
+** now, you just have to either complete the step or call checkIn within the timeout to keep the step alive.
+* clean up the example's shutdown sequence so it actually exits.
+* moved project to Scala 2.12
+* dropped support for Scala 2.10 and 2.11
+** We treat compiler warnings as errors, so moving to 2.12 forced us to use JavaConverters instead of JavaConversions.
+   Sadly, This results in code that doesn't compile in 2.10 and 2.11.
+
 ## 5.2 - 2016-12-29
 * create new `sswf-guava-20` module with a few convenience classes defining
   the decision and action services

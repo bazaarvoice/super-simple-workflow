@@ -4,10 +4,10 @@ import com.typesafe.sbt.pgp.PgpKeys._
 
 object Commons {
   val settings: Seq[Def.Setting[_]] = Seq(
-    version := "5.2",
+    version := "6.0",
     organization := "com.bazaarvoice",
-    scalaVersion := "2.11.7",
-    crossScalaVersions := Seq("2.10.4", "2.11.7"),
+    scalaVersion := "2.12.1",
+    crossScalaVersions := Seq("2.12.1"),
     scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-Xfatal-warnings"),
     javacOptions in (Compile, compile) ++= Seq("-source", "1.8", "-target", "1.8"),
 

@@ -8,13 +8,13 @@ import com.bazaarvoice.sswf.model.{DefinedStep, ScheduledStep, SleepStep, StepIn
 import com.bazaarvoice.sswf.service.{StepActionWorker, StepDecisionWorker, WorkflowManagement}
 import org.scalatest.FlatSpec
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 class StepTransitionWorkflowDefinition() extends WorkflowDefinition[String, StateTransitionSteps] {
   private var timeOutStepInvocationCount: Int = 0
 
   override def workflow(input: String): _root_.java.util.List[ScheduledStep[StateTransitionSteps]] =
-    List(DefinedStep(StateTransitionSteps.TIMEOUT_STEP), SleepStep[StateTransitionSteps](1), SleepStep[StateTransitionSteps](1), DefinedStep(StateTransitionSteps.FINAL_STEP))
+    List[ScheduledStep[StateTransitionSteps]](DefinedStep(StateTransitionSteps.TIMEOUT_STEP), SleepStep[StateTransitionSteps](1), SleepStep[StateTransitionSteps](1), DefinedStep(StateTransitionSteps.FINAL_STEP)).asJava
 
   override def onFinish(workflowId: String, runId: String, input: String, history: StepsHistory[String, StateTransitionSteps], message: String): Unit = ()
   override def onCancel(workflowId: String, runId: String, input: String, history: StepsHistory[String, StateTransitionSteps], message: String): Unit = ()
@@ -80,7 +80,7 @@ class StepTransitionTest extends FlatSpec {
   def makeTimerDecision(): Unit = {
     val decisionTask: DecisionTask = untilNotNull(decider.pollForDecisionsToMake())
     val decision: RespondDecisionTaskCompletedRequest = decider.makeDecision(decisionTask)
-    assert(decision.getDecisions.exists((d: Decision) => d.getDecisionType == DecisionType.StartTimer.toString))
+    assert(decision.getDecisions.asScala.exists((d: Decision) => d.getDecisionType == DecisionType.StartTimer.toString))
   }
 
   def waitForStepResult(): RespondActivityTaskCompletedRequest = {

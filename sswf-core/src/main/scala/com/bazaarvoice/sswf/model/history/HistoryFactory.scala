@@ -11,7 +11,7 @@ import com.bazaarvoice.sswf.util._
 import com.bazaarvoice.sswf.{InputParser, WorkflowStep}
 import org.joda.time.{DateTime, Duration}
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.reflect._
 
@@ -298,13 +298,13 @@ object HistoryFactory {
       }
 
 
-    val compactedHistory: util.List[StepEvent[StepEnum]] = filterStarts(events)
+    val compactedHistory: util.List[StepEvent[StepEnum]] = filterStarts(events).asJava
 
     StepsHistory[SSWFInput, StepEnum](
       inputParser.deserialize(input),
       Collections.unmodifiableList(compactedHistory),
-      Collections.unmodifiableSet(new util.HashSet[DefinedStep[StepEnum]](firedSteps)),
-      Collections.unmodifiableSet(expiredSignals),
+      Collections.unmodifiableSet(firedSteps.toSet.asJava),
+      Collections.unmodifiableSet(expiredSignals.asJava),
       workflowCancelRequested
     )
   }

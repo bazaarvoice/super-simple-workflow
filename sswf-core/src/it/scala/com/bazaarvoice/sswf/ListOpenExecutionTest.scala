@@ -11,12 +11,12 @@ import com.bazaarvoice.sswf.service.{StepActionWorker, StepDecisionWorker, Workf
 import org.joda.time.DateTime
 import org.scalatest.FlatSpec
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 class DummyWorkflowDefinition() extends WorkflowDefinition[String, ListOpenExecutionTestSteps] {
 
   override def workflow(input: String): _root_.java.util.List[ScheduledStep[ListOpenExecutionTestSteps]] =
-    List(DefinedStep(ListOpenExecutionTestSteps.DUMMY_STEP1), DefinedStep(ListOpenExecutionTestSteps.DUMMY_STEP2))
+    List[ScheduledStep[ListOpenExecutionTestSteps]](DefinedStep(ListOpenExecutionTestSteps.DUMMY_STEP1), DefinedStep(ListOpenExecutionTestSteps.DUMMY_STEP2)).asJava
 
   override def onFinish(workflowId: String, runId: String, input: String, history: StepsHistory[String, ListOpenExecutionTestSteps], message: String): Unit = {}
   override def onCancel(workflowId: String, runId: String, input: String, history: StepsHistory[String, ListOpenExecutionTestSteps], message: String): Unit = {}

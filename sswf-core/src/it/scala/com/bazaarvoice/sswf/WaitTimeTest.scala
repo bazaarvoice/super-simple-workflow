@@ -9,12 +9,12 @@ import com.bazaarvoice.sswf.service.{StepActionWorker, StepDecisionWorker, Workf
 import org.joda.time.Duration
 import org.scalatest.FlatSpec
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 class WaitTimeTestWorkflowDef() extends WorkflowDefinition[String, WaitTimeSteps] {
   private var waitStepInvocationCount: Int = 4
-  override def workflow(input: String): _root_.java.util.List[ScheduledStep[WaitTimeSteps]] = List(DefinedStep(WaitTimeSteps.DUMMY_STEP), DefinedStep(WaitTimeSteps.WAIT_STEP),
-    DefinedStep(WaitTimeSteps.DUMMY_STEP), DefinedStep(WaitTimeSteps.DUMMY_STEP))
+  override def workflow(input: String): _root_.java.util.List[ScheduledStep[WaitTimeSteps]] = List[ScheduledStep[WaitTimeSteps]](DefinedStep(WaitTimeSteps.DUMMY_STEP), DefinedStep(WaitTimeSteps.WAIT_STEP),
+    DefinedStep(WaitTimeSteps.DUMMY_STEP), DefinedStep(WaitTimeSteps.DUMMY_STEP)).asJava
   override def onFinish(workflowId: String, runId: String, input: String, history: StepsHistory[String, WaitTimeSteps], message: String): Unit = ()
   override def onCancel(workflowId: String, runId: String, input: String, history: StepsHistory[String, WaitTimeSteps], message: String): Unit = ()
   override def onFail(workflowId: String, runId: String, input: String, history: StepsHistory[String, WaitTimeSteps], message: String): Unit = ()
@@ -147,13 +147,13 @@ class WaitTimeTest extends FlatSpec {
     if (makeTimerDecision) {
       val decisionTask: DecisionTask = untilNotNull(decider.pollForDecisionsToMake())
       val decision: RespondDecisionTaskCompletedRequest = decider.makeDecision(decisionTask)
-      assert(decision.getDecisions.exists((d: Decision) => d.getDecisionType == DecisionType.StartTimer.toString))
-      assert(decision.getDecisions.exists((d: Decision) => d.getStartTimerDecisionAttributes.getStartToFireTimeout.toInt == waitTimeRequested))
+      assert(decision.getDecisions.asScala.exists((d: Decision) => d.getDecisionType == DecisionType.StartTimer.toString))
+      assert(decision.getDecisions.asScala.exists((d: Decision) => d.getStartTimerDecisionAttributes.getStartToFireTimeout.toInt == waitTimeRequested))
     }
 
     val scheduleActivityDecisionTask: DecisionTask = untilNotNull(decider.pollForDecisionsToMake())
     val scheduleActivityDecision: RespondDecisionTaskCompletedRequest = decider.makeDecision(scheduleActivityDecisionTask)
-    assert(scheduleActivityDecision.getDecisions.exists((d: Decision) => d.getDecisionType == DecisionType.ScheduleActivityTask.toString))
+    assert(scheduleActivityDecision.getDecisions.asScala.exists((d: Decision) => d.getDecisionType == DecisionType.ScheduleActivityTask.toString))
 
     val activityTask: ActivityTask = untilNotNull(actor.pollForWork())
     actor.doWork(activityTask)

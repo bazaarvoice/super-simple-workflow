@@ -8,10 +8,10 @@ import com.bazaarvoice.sswf.model.{DefinedStep, ScheduledStep, StepInput}
 import com.bazaarvoice.sswf.service.{StepActionWorker, StepDecisionWorker, WorkflowManagement}
 import org.scalatest.FlatSpec
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 class CancelTestWorkflowDef(rememberer: Rememberer) extends WorkflowDefinition[String, TestSteps] {
-  override def workflow(input: String): _root_.java.util.List[ScheduledStep[TestSteps]] = List(DefinedStep(TestSteps.INPROGRESS_STEP))
+  override def workflow(input: String): _root_.java.util.List[ScheduledStep[TestSteps]] = List[ScheduledStep[TestSteps]](DefinedStep(TestSteps.INPROGRESS_STEP)).asJava
   override def onFinish(workflowId: String, runId: String, input: String, history: StepsHistory[String, TestSteps], message: String): Unit = rememberer.remember("finished")
   override def onCancel(workflowId: String, runId: String, input: String, history: StepsHistory[String, TestSteps], message: String): Unit = rememberer.remember("cancelled")
   override def onFail(workflowId: String, runId: String, input: String, history: StepsHistory[String, TestSteps], message: String): Unit = rememberer.remember("failed")
@@ -52,7 +52,7 @@ class CancelTest extends FlatSpec {
       {
         val decisionTask: DecisionTask = untilNotNull(decider.pollForDecisionsToMake())
         val decision: RespondDecisionTaskCompletedRequest = decider.makeDecision(decisionTask)
-        assert(decision.getDecisions.exists(d => d.getDecisionType == DecisionType.ScheduleActivityTask.toString))
+        assert(decision.getDecisions.asScala.exists(d => d.getDecisionType == DecisionType.ScheduleActivityTask.toString))
       }
       {
         val activityTask: ActivityTask = untilNotNull(actor.pollForWork())
@@ -65,7 +65,7 @@ class CancelTest extends FlatSpec {
       {
         val decisionTask: DecisionTask = untilNotNull(decider.pollForDecisionsToMake())
         val decision: RespondDecisionTaskCompletedRequest = decider.makeDecision(decisionTask)
-        assert(decision.getDecisions.exists((d: Decision) => d.getDecisionType == DecisionType.CancelWorkflowExecution.toString))
+        assert(decision.getDecisions.asScala.exists((d: Decision) => d.getDecisionType == DecisionType.CancelWorkflowExecution.toString))
         assert(rememberer.toRemember === "cancelled")
       }
     } finally {

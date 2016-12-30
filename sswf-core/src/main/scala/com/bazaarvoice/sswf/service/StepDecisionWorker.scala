@@ -12,7 +12,7 @@ import com.bazaarvoice.sswf.model.{DefinedStep, SleepStep}
 import com.bazaarvoice.sswf.util.{packInput, packTimer}
 import com.sun.istack.internal.{NotNull, Nullable}
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
@@ -117,7 +117,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     val input = history.input
 
     def respond(d: Decision): RespondDecisionTaskCompletedRequest =
-      new RespondDecisionTaskCompletedRequest().withDecisions(List(d)).withTaskToken(decisionTask.getTaskToken)
+      new RespondDecisionTaskCompletedRequest().withDecisions(List(d).asJava).withTaskToken(decisionTask.getTaskToken)
 
     def resume(step: DefinedStep[StepEnum]) = {
       val scheduleActivityTaskDecisionAttributes: ScheduleActivityTaskDecisionAttributes = new ScheduleActivityTaskDecisionAttributes()
@@ -171,19 +171,19 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
     }
 
     log.debug(s"checking for fired timers for [${decisionTask.getStartedEventId}]")
-    if (history.firedTimers.nonEmpty) {
-      return respond(schedule(history.firedTimers.head))
+    if (history.firedTimers.asScala.nonEmpty) {
+      return respond(schedule(history.firedTimers.asScala.head))
     }
 
     log.debug(s"checking signals for [${decisionTask.getStartedEventId}]")
-    val receivedSignals = history.events
+    val receivedSignals = history.events.asScala
        .filter(event => event.event.isRight && event.event.right.get.startsWith("SIGNAL:"))
        .map(_.event.right.get.drop(7))
        .toSet
 
     log.debug(s"finding final states for [${decisionTask.getStartedEventId}]")
     val finalStates = mutable.Buffer[StepEvent[StepEnum]]()
-    for (e <- history.events if e.event.isLeft) {
+    for (e <- history.events.asScala if e.event.isLeft) {
       if (finalStates.isEmpty) {
         finalStates.append(e)
       } else {
@@ -203,7 +203,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
 
     log.debug(s"determining next step for [${decisionTask.getStartedEventId}]")
     val fsIt = finalStates.iterator
-    for (step <- workflowDefinition.workflow(input)) {
+    for (step <- workflowDefinition.workflow(input).asScala) {
       if (!fsIt.hasNext && history.cancelRequested) {
         return respond(cancelWorkflow)
       } else if (!fsIt.hasNext) {
@@ -259,7 +259,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
        )
 
   private[this] def getFullHistory(decisionTask: DecisionTask): (DecisionTask, List[HistoryEvent]) = {
-    var events = decisionTask.getEvents.toList
+    var events = decisionTask.getEvents.asScala.toList
     var newDecisionTask = decisionTask
     while (newDecisionTask.getNextPageToken != null) {
       newDecisionTask = swf.pollForDecisionTask(
@@ -269,7 +269,7 @@ class StepDecisionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
            .withIdentity(identity)
            .withNextPageToken(newDecisionTask.getNextPageToken)
       )
-      events = events ::: newDecisionTask.getEvents.toList
+      events = events ::: newDecisionTask.getEvents.asScala.toList
     }
     (newDecisionTask, events)
   }

@@ -3,7 +3,7 @@ package com.bazaarvoice.sswf.model.result
 import com.fasterxml.jackson.databind.node.{ArrayNode, JsonNodeFactory}
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /**
   * Messages to signal state transitions from action steps
@@ -38,8 +38,8 @@ case class Wait(message: Option[String], waitSeconds: Int, signal: String, signa
   def this(waitSeconds: Int, signal0: String, signal1: String, signal2: String, signal3: String, signal4: String) = this(None, waitSeconds, signal0, List(signal1, signal2, signal3, signal4))
   def this(waitSeconds: Int, signal0: String, signal1: String, signal2: String, signal3: String, signal4: String, signal5: String) =
     this(None, waitSeconds, signal0, List(signal1, signal2, signal3, signal4, signal5))
-  def this(waitSeconds: Int, signal0: String, signals: java.util.List[String]) = this(None, waitSeconds, signal0, signals.toList)
-  def this(message: String, waitSeconds: Int, signal0: String, signals: java.util.List[String]) = this(Some(message), waitSeconds, signal0, signals.toList)
+  def this(waitSeconds: Int, signal0: String, signals: java.util.List[String]) = this(None, waitSeconds, signal0, signals.asScala.toList)
+  def this(message: String, waitSeconds: Int, signal0: String, signals: java.util.List[String]) = this(Some(message), waitSeconds, signal0, signals.asScala.toList)
 
   override def isInProgress: Boolean = true
 }
@@ -73,7 +73,7 @@ object StepResult {
       case "SUCCESS"     => Success(Option(node.get("message")).map(_.asText()))
       case "IN_PROGRESS" => InProgress(Option(node.get("message")).map(_.asText()))
       case "WAIT"        =>
-        val signal0 :: signals = node.get("signals").elements().map(_.asText()).toList
+        val signal0 :: signals = node.get("signals").elements().asScala.map(_.asText()).toList
         Wait(Option(node.get("message")).map(_.asText()),
           node.get("waitSeconds").asInt(),
           signal0,

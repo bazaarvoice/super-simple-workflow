@@ -8,7 +8,7 @@ lazy val core = (project in file("sswf-core"))
        "com.amazonaws" % "aws-java-sdk" % "1.11.73",
        "org.joda" % "joda-convert" % "1.2"
      ),
-     libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.6" % "e2e,it,test"
+     libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "e2e,it,test"
    )
    .settings(Commons.publish: _*)
 

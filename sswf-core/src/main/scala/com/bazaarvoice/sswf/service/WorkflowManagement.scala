@@ -8,7 +8,7 @@ import com.bazaarvoice.sswf.model.history.{HistoryFactory, StepsHistory}
 import com.bazaarvoice.sswf.service.except.WorkflowManagementException
 import com.bazaarvoice.sswf.{InputParser, Logger, WorkflowStep}
 
-import scala.collection.JavaConversions.collectionAsScalaIterable
+import scala.collection.JavaConverters._
 import scala.reflect._
 import scala.util.Random
 
@@ -245,7 +245,7 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
       Stream
          .iterate(swf.getWorkflowExecutionHistory(request))(iterateFn)
          .takeWhile(_ != null)
-         .flatten(_.getEvents)
+         .flatten(_.getEvents.asScala)
          .toList
 
     HistoryFactory.from(historyEvents, inputParser)
@@ -357,10 +357,10 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
       Stream
          .iterate(swf.listOpenWorkflowExecutions(listOpenWorkflowExecutionsRequest))(iterateFn)
          .takeWhile(_ != null)
-         .flatten(_.getExecutionInfos)
+         .flatten(_.getExecutionInfos.asScala)
     }
 
-    Collections.unmodifiableList(scala.collection.JavaConversions.seqAsJavaList(openStream))
+    Collections.unmodifiableList(scala.collection.JavaConverters.seqAsJavaList(openStream))
   }
 
 
@@ -374,10 +374,10 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
       Stream
          .iterate(swf.listClosedWorkflowExecutions(listClosedWorkflowExecutionsRequest))(iterateFn)
          .takeWhile(_ != null)
-         .flatten(_.getExecutionInfos)
+         .flatten(_.getExecutionInfos.asScala)
     }
 
-    Collections.unmodifiableList(scala.collection.JavaConversions.seqAsJavaList(closedStream))
+    Collections.unmodifiableList(scala.collection.JavaConverters.seqAsJavaList(closedStream))
   }
 
 }
