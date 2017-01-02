@@ -131,6 +131,8 @@ class StepActionWorker[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowStep)
     try {
       swf.respondActivityTaskCompleted(response)
     } catch {
+      case ure: UnknownResourceException =>
+        log.warn("Activity has timed out. Ignoring...", ure)
       case t: Throwable =>
         log.error(s"[${activityTask.getTaskToken}] Exception reporting action result to SWF", t)
         throw t

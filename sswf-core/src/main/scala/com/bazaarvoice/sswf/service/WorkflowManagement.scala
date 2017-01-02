@@ -334,8 +334,8 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
              .withDefaultTaskList(new TaskList().withName(taskList))
              .withDefaultTaskHeartbeatTimeout(activity.timeoutSeconds.toString)
              .withDefaultTaskScheduleToStartTimeout(stepScheduleToStartTimeoutSeconds.toString)
-             .withDefaultTaskScheduleToCloseTimeout((stepScheduleToStartTimeoutSeconds + activity.timeoutSeconds).toString)
-             .withDefaultTaskStartToCloseTimeout(activity.timeoutSeconds.toString)
+             .withDefaultTaskScheduleToCloseTimeout("NONE") // the heartbeat timeout serves as our timeout
+             .withDefaultTaskStartToCloseTimeout("NONE") // the heartbeat timeout serves as our timeout
           )
         } catch {
           case t: Throwable =>

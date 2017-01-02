@@ -21,13 +21,6 @@ class CancelTestWorkflowDef(rememberer: Rememberer) extends WorkflowDefinition[S
     }
 }
 
-class Rememberer {
-  var toRemember: String = _
-  def remember(s: String): Unit = {
-    toRemember = s
-  }
-}
-
 class CancelTest extends FlatSpec {
   val rememberer = new Rememberer
 
