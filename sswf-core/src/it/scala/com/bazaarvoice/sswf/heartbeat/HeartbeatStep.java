@@ -8,7 +8,7 @@ public enum HeartbeatStep implements WorkflowStep {
     HEARTBEAT_STEP;
 
     @Override public int timeoutSeconds() {
-        return 10;
+        return 5;
     }
 
     @Override public InProgressSleepFunction inProgressSleepSecondsFn() {

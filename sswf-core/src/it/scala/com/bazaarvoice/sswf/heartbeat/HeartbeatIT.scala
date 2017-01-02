@@ -61,10 +61,10 @@ class HeartbeatITest extends FlatSpec {
     throw new Exception()
   }
 
-  "a non-beating workflow" should "time out after 11 seconds" in {
+  "a non-beating workflow" should "time out after 5 seconds" in {
     val rememberer = new Rememberer
     manager.registerWorkflow()
-    val definition = new HeartbeatWorkflowDef(rememberer, 0, 11000)
+    val definition = new HeartbeatWorkflowDef(rememberer, 0, 5000)
     val decider1: StepDecisionWorker[String, HeartbeatStep] = decider(definition)
     val actor1: StepActionWorker[String, HeartbeatStep] = actor(definition)
 
@@ -80,7 +80,7 @@ class HeartbeatITest extends FlatSpec {
         val work: RespondActivityTaskCompletedRequest = actor1.doWork(untilNotNull(actor1.pollForWork()))
         StepResult.deserialize(work.getResult).isInstanceOf[Success]
       })
-      assert((System.currentTimeMillis() - start) >= 11000) // make sure the step really did take "too long"
+      assert((System.currentTimeMillis() - start) >= 5000) // make sure the step really did take "too long"
 
       assert({
         val decision: RespondDecisionTaskCompletedRequest = decider1.makeDecision(untilNotNull(decider1.pollForDecisionsToMake()))
@@ -92,10 +92,10 @@ class HeartbeatITest extends FlatSpec {
     }
   }
 
-  "a beating workflow" should "not time out, even after 15 seconds" in {
+  "a beating workflow" should "not time out, even after 10 seconds" in {
     val rememberer = new Rememberer
     manager.registerWorkflow()
-    val definition = new HeartbeatWorkflowDef(rememberer, 15000, 0)
+    val definition = new HeartbeatWorkflowDef(rememberer, 10000, 0)
     val decider1: StepDecisionWorker[String, HeartbeatStep] = decider(definition)
     val actor1: StepActionWorker[String, HeartbeatStep] = actor(definition)
 
@@ -114,7 +114,7 @@ class HeartbeatITest extends FlatSpec {
            .deserialize(actor1.doWork(untilNotNull(actor1.pollForWork())).getResult)
            .isInstanceOf[Success]
       )
-      assert((System.currentTimeMillis() - actionStart) >= 15000) // make sure the step really did take "too long"
+      assert((System.currentTimeMillis() - actionStart) >= 10000) // make sure the step really did take "too long"
 
       assert(
         decider1
@@ -126,7 +126,7 @@ class HeartbeatITest extends FlatSpec {
       val last: StepEvent[HeartbeatStep] = manager.describeExecution(execution.getWorkflowId, execution.getRunId).events.asScala.last
       assert(last.event.right.get === "WORKFLOW")
       assert(last.result === "SUCCESS")
-      
+
     } finally {
       // workflow should have been terminated by decider.
       assertThrows[WorkflowManagementException](manager.terminateWorkflowExecution(execution.getWorkflowId, execution.getRunId))
