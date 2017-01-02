@@ -4,8 +4,8 @@ All notable changes to this projected will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 This changelog follows [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## 6.0 - 2016-12-30
-* simplify the step interface by consolidating heartbear and step timeouts.
+## 6.0 - 2017-01-02
+* simplify the step interface by consolidating heartbeat and step timeouts.
 ** now, you just have to either complete the step or call checkIn within the timeout to keep the step alive.
 * clean up the example's shutdown sequence so it actually exits.
 * moved project to Scala 2.12
