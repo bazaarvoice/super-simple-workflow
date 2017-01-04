@@ -1,10 +1,12 @@
 [![Join the chat at https://gitter.im/super-simple-workflow/Lobby](https://badges.gitter.im/super-simple-workflow/Lobby.svg)](https://gitter.im/super-simple-workflow/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Build Status](https://travis-ci.org/bazaarvoice/super-simple-workflow.svg?branch=master)](https://travis-ci.org/bazaarvoice/super-simple-workflow)
 
+Simple Workflow is not simple. Let's really simplify it!
+
+For a nice intro, check out the [blog post](http://blog.vvcephei.org/super-simple-workflow).
+
 Getting Started
 ===============
-
-Simple Workflow is not simple. Let's really simplify it!
 
 Here's how it works:
 
