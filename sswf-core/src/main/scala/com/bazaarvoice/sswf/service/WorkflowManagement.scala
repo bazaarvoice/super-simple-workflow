@@ -315,7 +315,7 @@ class WorkflowManagement[SSWFInput, StepEnum <: (Enum[StepEnum] with WorkflowSte
   }
 
   private[this] def registerActivities() {
-    val baseRequest: ListActivityTypesRequest = new ListActivityTypesRequest()
+    def baseRequest: ListActivityTypesRequest = new ListActivityTypesRequest()
        .withDomain(domain)
        .withMaximumPageSize(100)
 
