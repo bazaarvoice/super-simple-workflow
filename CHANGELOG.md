@@ -4,6 +4,9 @@ All notable changes to this projected will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 This changelog follows [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## 6.1 - 2017-01-26
+* bugfix: paging over activity types was broken. See https://github.com/bazaarvoice/super-simple-workflow/pull/22
+
 ## 6.0 - 2017-01-02
 * simplify the step interface by consolidating heartbeat and step timeouts.
 ** now, you just have to either complete the step or call checkIn within the timeout to keep the step alive.
