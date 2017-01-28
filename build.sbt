@@ -19,7 +19,6 @@ lazy val guava20 = (project in file("sswf-guava-20"))
      libraryDependencies ++= Seq(
        "com.google.guava" % "guava" % "20.0",
        "org.slf4j" % "slf4j-api" % "1.7.22",
-       "org.slf4j" % "slf4j-simple" % "1.7.22",
        "com.google.code.findbugs" % "jsr305" % "2.0.3" // work around a bug in scalac https://issues.scala-lang.org/browse/SI-8978
      )
    )
@@ -30,6 +29,9 @@ lazy val example = (project in file("sswf-java-example"))
    .settings(Commons.settings: _*)
    .settings(
      name := "sswf-example",
+     libraryDependencies ++= Seq(
+       "org.slf4j" % "slf4j-simple" % "1.7.22"
+     ),
      mainClass in(Compile, run) := Some("example.ExampleWorkflowService"),
      fork in run := true
    )
