@@ -7,6 +7,6 @@ object util {
   // fingerprint a certain step configuration so we can be sure we are executing the step we intend to.
   // So instead of a real version number, we use the timeout. If that changes, the step is logically different.
   private[service] def stepToVersion[StepEnum <: (Enum[StepEnum] with WorkflowStep)](step: StepEnum): String =
-    s"${step.versionOverride}.${step.timeoutSeconds}.${step.inProgressSleepSecondsFn.apply(1,1)}"
+    s"${step.versionOverride}.${step.timeoutSeconds}"
 
 }
