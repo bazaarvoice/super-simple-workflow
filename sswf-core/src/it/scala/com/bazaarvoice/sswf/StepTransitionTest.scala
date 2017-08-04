@@ -9,6 +9,7 @@ import com.bazaarvoice.sswf.service.{StepActionWorker, StepDecisionWorker, Workf
 import org.scalatest.FlatSpec
 
 import scala.collection.JavaConverters._
+import TestUtils.untilNotNull
 
 class StepTransitionWorkflowDefinition() extends WorkflowDefinition[String, StateTransitionSteps] {
   private var timeOutStepInvocationCount: Int = 0
@@ -90,16 +91,6 @@ class StepTransitionTest extends FlatSpec {
 
     val activityTask: ActivityTask = untilNotNull(actor.pollForWork())
     actor.doWork(activityTask)
-  }
-
-  def untilNotNull[R](action: => R): R = {
-    while (true) {
-      val r: R = action
-      if (r != null) {
-        return r
-      }
-    }
-    throw new Exception()
   }
 }
 
