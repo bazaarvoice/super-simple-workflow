@@ -4,6 +4,9 @@ All notable changes to this projected will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 This changelog follows [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## 6.3 - 2017-08-05
+* Add override to force a version number change in `WorflowStep`s. This is necessary because the in-progress timer is now a function, which we have no way to automatically detect a change in. See https://github.com/bazaarvoice/super-simple-workflow/pull/24
+
 ## 6.2 - 2017-01-28
 * move slf4j-simple dependency to the example module so it doesn't get exported as a transitive dependency
 
