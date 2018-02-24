@@ -6,9 +6,9 @@ import com.bazaarvoice.sswf.model.history.StepsHistory
 import com.bazaarvoice.sswf.model.result.{InProgress, StepResult, Success}
 import com.bazaarvoice.sswf.model.{DefinedStep, ScheduledStep, StepInput}
 import com.bazaarvoice.sswf.service.{StepActionWorker, StepDecisionWorker, WorkflowManagement}
-import example.StdOutLogger
 import org.joda.time.Duration
 import org.scalatest.FlatSpec
+import test.utils.StdOutLogger
 
 import scala.collection.JavaConversions._
 
