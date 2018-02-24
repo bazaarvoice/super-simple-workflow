@@ -8,16 +8,15 @@ import com.bazaarvoice.sswf.model.history.StepsHistory
 import com.bazaarvoice.sswf.model.result.{StepResult, Success}
 import com.bazaarvoice.sswf.model.{DefinedStep, ScheduledStep, StepInput}
 import com.bazaarvoice.sswf.service.{StepActionWorker, StepDecisionWorker, WorkflowManagement}
-import example.StdOutLogger
 import org.joda.time.DateTime
 import org.scalatest.FlatSpec
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 class DummyWorkflowDefinition() extends WorkflowDefinition[String, ListOpenExecutionTestSteps] {
 
   override def workflow(input: String): _root_.java.util.List[ScheduledStep[ListOpenExecutionTestSteps]] =
-    List(DefinedStep(ListOpenExecutionTestSteps.DUMMY_STEP1), DefinedStep(ListOpenExecutionTestSteps.DUMMY_STEP2))
+    List[ScheduledStep[ListOpenExecutionTestSteps]](DefinedStep(ListOpenExecutionTestSteps.DUMMY_STEP1), DefinedStep(ListOpenExecutionTestSteps.DUMMY_STEP2)).asJava
 
   override def onFinish(workflowId: String, runId: String, input: String, history: StepsHistory[String, ListOpenExecutionTestSteps], message: String): Unit = {}
   override def onCancel(workflowId: String, runId: String, input: String, history: StepsHistory[String, ListOpenExecutionTestSteps], message: String): Unit = {}
@@ -39,7 +38,7 @@ class ListOpenExecutionTest extends FlatSpec {
   private val domain: String = "sswf-tests"
   private val wf: String = "list-open-executions-test"
   private val swf: AmazonSimpleWorkflowClient = new AmazonSimpleWorkflowClient()
-  private val logger: StdOutLogger = new StdOutLogger
+  private val logger: Logger = new SilentLogger
 
   val manager = new WorkflowManagement[String, ListOpenExecutionTestSteps](domain, wf, "0.0", wf, swf, inputParser = parser, log = logger)
   val definition = new DummyWorkflowDefinition()
@@ -53,6 +52,13 @@ class ListOpenExecutionTest extends FlatSpec {
     val workflow: WorkflowExecution = manager.startWorkflow(workflowId, "")
     try {
       assert(waitForStepResult().getResult === StepResult.serialize(Success(None)))
+
+      /**
+        * NOTE: This sleep statement allows the Doula workflow to get started BEFORE
+        *       we attempt to query it for the list of open executions. If you don't do this
+        *       you may get an empty list returned on occasion causing the test to fail.
+        */
+      Thread.sleep(1000);
 
       val openExecutions = manager.listOpenExecutions(startTime, new Date(), workflowId)
       assert(openExecutions.size() == 1)
@@ -73,6 +79,13 @@ class ListOpenExecutionTest extends FlatSpec {
       }
     }
 
+    /**
+      * NOTE: This sleep statement allows the Doula workflow to be closed BEFORE
+      *       we attempt to query it for the list of closed executions. If you don't do this
+      *       the closed list query may fail or the closedDate may fail the last assertion.
+      */
+    Thread.sleep(2000);
+
     val currentOpenExecutions = manager.listOpenExecutions(startTime, new Date(), workflowId)
     assert(currentOpenExecutions.size() == 0)
 
@@ -88,7 +101,8 @@ class ListOpenExecutionTest extends FlatSpec {
   }
   def waitForStepResult(): RespondActivityTaskCompletedRequest = {
     val scheduleActivityDecisionTask: DecisionTask = untilNotNull(decider.pollForDecisionsToMake())
-    val scheduleActivityDecision: RespondDecisionTaskCompletedRequest = decider.makeDecision(scheduleActivityDecisionTask)
+
+    decider.makeDecision(scheduleActivityDecisionTask)
 
     val activityTask: ActivityTask = untilNotNull(actor.pollForWork())
     actor.doWork(activityTask)

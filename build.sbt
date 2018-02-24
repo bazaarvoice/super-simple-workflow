@@ -1,5 +1,5 @@
 
-
+lazy val root = project.in(file(".")).aggregate(core, example)
 
 lazy val core = (project in file("sswf-core"))
    .configs(Configs.all: _*)
@@ -8,7 +8,7 @@ lazy val core = (project in file("sswf-core"))
    .settings(
      name := "sswf",
      libraryDependencies ++= Seq(
-       "com.amazonaws" % "aws-java-sdk" % "1.11.73",
+       "com.amazonaws" % "aws-java-sdk" % "1.10.69",
        "org.joda" % "joda-convert" % "1.2"
      ),
      libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.6" % "e2e,it,test",
@@ -50,9 +50,9 @@ lazy val example = (project in file("sswf-java-example"))
    .settings(
      name := "sswf-example",
      libraryDependencies ++= Seq(
-       "com.amazonaws" % "aws-java-sdk" % "1.11.73",
+       "com.amazonaws" % "aws-java-sdk" % "1.10.69",
        "org.joda" % "joda-convert" % "1.2"
      ),
      mainClass in(Compile, run) := Some("example.ExampleWorkflowService")
    )
-   .dependsOn(core)
+   .dependsOn("core")
