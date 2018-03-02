@@ -249,7 +249,8 @@ object HistoryFactory {
             val signalName: String = attributes.getSignalName
 
             val endTime: DateTime = new DateTime(h.getEventTimestamp.getTime)
-
+            // null currentStep after signal so it will get properly set when next step hits ActivityTaskScheduled
+            currentStep = null
             Some(StepEvent[StepEnum](h.getEventId, h.getEventId, Right(s"SIGNAL:$signalName"), "RECEIVED", currentStepStart, Some(endTime), new Duration(currentStepStart, endTime), invocations))
 
 

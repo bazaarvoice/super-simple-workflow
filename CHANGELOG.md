@@ -4,6 +4,9 @@ All notable changes to this projected will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 This changelog follows [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## 6.4 - 2018-03-02
+* fixed a bug in signal handling
+
 ## 6.3 - 2017-08-05
 * Add override to force a version number change in `WorflowStep`s. This is necessary because the in-progress timer is now a function, which we have no way to automatically detect a change in. See https://github.com/bazaarvoice/super-simple-workflow/pull/24
 
@@ -33,6 +36,9 @@ This changelog follows [Keep a CHANGELOG](http://keepachangelog.com/).
 
 ## 5.1 - 2016-12-29
 * burned a version number messing with the project structure
+
+## 5.0.1 - 2018-03-01
+* fixed a bug in signal handling, created this version for compatibility with production Doula 3.16, which uses Scala 2.11
 
 ## 5.0 - 2016-12-06
 * new APIs for listing open and closed workflow executions
